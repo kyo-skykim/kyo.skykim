@@ -10,7 +10,6 @@ export const profile = {
   phone: "090-6324894",
   email: "phuncam.c@gmail.com",
   linkedin: "https://www.linkedin.com/in/chonlathitp",
-  linktree: "https://linktr.ee/kyo.skykim",
   cv: "CV_Conlathit_Phuncam.pdf",
   summary:
     "Bachelor of Science in Mathematics with coursework in Mathematical Analysis, Applied Mathematics and Elementary Statistics. Currently attending a Data Engineering intensive bootcamp. Adept at logical problem-solving and applying mathematical principles to analyze complex datasets and support data-driven decision-making.",
@@ -56,7 +55,7 @@ export const experience = [
 // ------------------------------------------------------------
 export const research = [
   {
-    year: "2026 (In Progress)",
+    year: "2026 ",
     title: "Automated Ethereum Data Pipeline & Anomaly Detection",
     type: "Independent Study",
     pdf: "kyo_miniproject_datapipeline for ETH.pdf",
