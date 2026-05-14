@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Lora, Inter } from "next/font/google";
+import MusicPlayer from "@/components/MusicPlayer";
 import "./globals.css";
 
 const lora = Lora({
@@ -32,6 +33,7 @@ export default function RootLayout({
         style={{ backgroundColor: "var(--cream)", color: "var(--ink)" }}
       >
         {children}
+        <MusicPlayer />
       </body>
     </html>
   );
