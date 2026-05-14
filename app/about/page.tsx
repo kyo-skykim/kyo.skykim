@@ -136,6 +136,14 @@ export default function AboutPage() {
                       </li>
                     ))}
                   </ul>
+                  {"image" in r && r.image && (
+                    <img
+                      src={`/${r.image}`}
+                      alt={r.title}
+                      className="mt-4 w-full rounded-xl"
+                      style={{ border: "1px solid var(--border)" }}
+                    />
+                  )}
                 </div>
               </div>
             ))}
