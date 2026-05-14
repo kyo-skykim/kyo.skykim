@@ -69,7 +69,7 @@ export const research = [
     year: "2022",
     title: "Injectivity and quasi-injectivity of products of some polynomials and Dedekind psi function",
     type: "Undergraduate Research Project",
-    pdf: null,
+     pdf: "Injectivity and quasi-injectivity of products  of some polynomials and Dedekind psi function.pdf",
     items: [
       "Applied MATLAB to analyze numerical patterns and detect duplicate function outputs",
       "Performed data matching and validation using Excel",
