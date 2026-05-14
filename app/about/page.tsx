@@ -37,7 +37,7 @@ const research = [
     year: "2026 (In Progress)",
     title: "Automated Ethereum Data Pipeline & Anomaly Detection",
     type: "Independent Study",
-    pdf: "eth_architecture_Aomsin.pdf.pdf",
+    pdf: "kyo_miniproject_datapipeline for ETH.pdf",
     items: [
       "Developed an end-to-end ETL pipeline using Python to extract Ethereum data with robust error handling.",
       "Processed and transformed data using PySpark and Spark SQL on Databricks.",
