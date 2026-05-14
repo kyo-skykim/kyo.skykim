@@ -37,7 +37,7 @@ export function getAllPosts(): PostMeta[] {
     } as PostMeta;
   });
 
-  return posts.sort((a, b) => (a.date < b.date ? 1 : -1));
+  return posts.sort((a, b) => b.date.localeCompare(a.date) || b.slug.localeCompare(a.slug));
 }
 
 export async function getPost(slug: string): Promise<Post | null> {
