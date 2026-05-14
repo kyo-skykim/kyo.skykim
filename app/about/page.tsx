@@ -45,13 +45,12 @@ export default function AboutPage() {
               {profile.name}
             </h1>
             <p className="text-sm mb-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
-              {profile.role} · {profile.location}
+              {profile.location}
             </p>
             <div className="flex flex-wrap gap-3 text-xs" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
               <span>{profile.phone}</span>
               <a href={`mailto:${profile.email}`} className="hover:opacity-70">{profile.email}</a>
               <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">LinkedIn</a>
-              <a href={profile.linktree} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">Linktree</a>
             </div>
           </div>
         </section>
