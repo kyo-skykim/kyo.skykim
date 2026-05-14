@@ -123,6 +123,7 @@ export default function AboutPage() {
               Data Engineer · Ratchaburi, Thailand
             </p>
             <div className="flex flex-wrap gap-3 text-xs" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
+              <span>090-6324894</span>
               <a href="mailto:phuncam.c@gmail.com" className="hover:opacity-70">phuncam.c@gmail.com</a>
               <a href="https://www.linkedin.com/in/chonlathitp" target="_blank" rel="noopener noreferrer" className="hover:opacity-70">LinkedIn</a>
               <a href="https://linktr.ee/kyo.skykim" target="_blank" rel="noopener noreferrer" className="hover:opacity-70">Linktree</a>
