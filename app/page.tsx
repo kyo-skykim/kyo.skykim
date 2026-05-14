@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Nav from "@/components/Nav";
 import { getAllPosts, formatDate } from "@/lib/posts";
 
 export default function Home() {
@@ -6,6 +7,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--cream)" }}>
+      <Nav />
       {/* Header */}
       <header
         className="border-b py-12 text-center"
