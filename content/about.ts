@@ -5,7 +5,6 @@
 export const profile = {
   name: "Chonlathit Phuncam",
   nickname: "Aomsin / Kyo",
-  role: "Data Engineer",
   location: "Ratchaburi, Thailand",
   phone: "090-6324894",
   email: "phuncam.c@gmail.com",
