@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPost, getAllPosts, formatDate } from "@/lib/posts";
+import { getPost, getAllPosts, formatDate } from "@/lib/diary";
 
 interface Props {
   params: Promise<{ slug: string }>;

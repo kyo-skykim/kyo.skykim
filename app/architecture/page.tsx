@@ -1,4 +1,4 @@
-import Nav from "@/components/Nav";
+import Nav from "@/components/layout/Nav";
 import { getAllProjects } from "@/lib/projects";
 
 export default function ArchitecturePage() {

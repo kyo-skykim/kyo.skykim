@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Lora, Inter } from "next/font/google";
-import MusicPlayer from "@/components/MusicPlayer";
+import MusicPlayer from "@/components/ui/MusicPlayer";
 import "./globals.css";
 
 const lora = Lora({

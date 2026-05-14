@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Nav from "@/components/Nav";
-import { getAllPosts, formatDate } from "@/lib/posts";
+import Nav from "@/components/layout/Nav";
+import { getAllPosts, formatDate } from "@/lib/diary";
 
 export default function Home() {
   const posts = getAllPosts();

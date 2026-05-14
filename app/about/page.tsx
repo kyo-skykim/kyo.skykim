@@ -1,5 +1,5 @@
-import Nav from "@/components/Nav";
-import ZoomImage from "@/components/ZoomImage";
+import Nav from "@/components/layout/Nav";
+import ZoomImage from "@/components/ui/ZoomImage";
 import {
   profile,
   experience,
