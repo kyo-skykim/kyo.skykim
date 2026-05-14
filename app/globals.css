@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --cream: #faf6f0;
+  --warm-white: #fffef9;
+  --ink: #2c2416;
+  --ink-light: #5a4e3c;
+  --accent: #b5835a;
+  --accent-light: #f0e4d4;
+  --border: #e8ddd0;
+}
+
+body {
+  background-color: var(--cream);
+  color: var(--ink);
+}
+
+@theme inline {
+  --font-serif: 'Georgia', 'Times New Roman', serif;
+}
+
+.diary-prose p {
+  margin-bottom: 1.25rem;
+}
+
+.diary-prose h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.diary-prose em {
+  font-style: italic;
+}
+
+.diary-prose strong {
+  font-weight: 600;
+  color: var(--ink);
+}
