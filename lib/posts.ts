@@ -20,6 +20,11 @@ export interface Post extends PostMeta {
   content: string;
 }
 
+function toTimestamp(dateStr: string): number {
+  const ts = Date.parse(dateStr);
+  return isNaN(ts) ? 0 : ts;
+}
+
 export function getAllPosts(): PostMeta[] {
   const files = fs.readdirSync(postsDir).filter((f) => f.endsWith(".md"));
   const posts = files.map((filename) => {
@@ -37,7 +42,7 @@ export function getAllPosts(): PostMeta[] {
     } as PostMeta;
   });
 
-  return posts.sort((a, b) => b.date.localeCompare(a.date) || b.slug.localeCompare(a.slug));
+  return posts.sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
 }
 
 export async function getPost(slug: string): Promise<Post | null> {
@@ -62,9 +67,11 @@ export async function getPost(slug: string): Promise<Post | null> {
 
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
+  const hasTime = dateStr.includes("T") || dateStr.includes(" ");
   return date.toLocaleDateString("th-TH", {
     year: "numeric",
     month: "long",
     day: "numeric",
+    ...(hasTime && { hour: "2-digit", minute: "2-digit" }),
   });
 }
