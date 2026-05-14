@@ -1,4 +1,5 @@
 import Nav from "@/components/Nav";
+import ZoomImage from "@/components/ZoomImage";
 import {
   profile,
   experience,
@@ -137,12 +138,7 @@ export default function AboutPage() {
                     ))}
                   </ul>
                   {"image" in r && r.image && (
-                    <img
-                      src={`/${r.image}`}
-                      alt={r.title}
-                      className="mt-4 w-full rounded-xl"
-                      style={{ border: "1px solid var(--border)" }}
-                    />
+                    <ZoomImage src={`/${r.image}`} alt={r.title} />
                   )}
                 </div>
               </div>
