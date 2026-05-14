@@ -1,21 +1,10 @@
 import Nav from "@/components/Nav";
-
-const docs = [
-  {
-    title: "ETH Architecture",
-    filename: "eth_architecture_Aomsin.pdf.pdf",
-    desc: "System architecture design for ETH project",
-    emoji: "🏗️",
-  },
-  {
-    title: "Data Pipeline for ETH",
-    filename: "kyo_miniproject_datapipeline for ETH.pdf",
-    desc: "Mini project: data pipeline design and implementation",
-    emoji: "🔄",
-  },
-];
+import { getAllProjects } from "@/lib/projects";
 
 export default function ArchitecturePage() {
+  const projects = getAllProjects();
+  const preview = projects.find((p) => p.pdf);
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--cream)" }}>
       <Nav />
@@ -36,12 +25,12 @@ export default function ArchitecturePage() {
           </p>
         </header>
 
-        {/* Document cards */}
+        {/* Project cards */}
         <div className="space-y-4 mb-10">
-          {docs.map((doc) => (
+          {projects.map((project) => (
             <a
-              key={doc.filename}
-              href={`/${doc.filename}`}
+              key={project.slug}
+              href={project.pdf ? `/${encodeURIComponent(project.pdf)}` : undefined}
               target="_blank"
               rel="noopener noreferrer"
               className="block rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5"
@@ -50,6 +39,8 @@ export default function ArchitecturePage() {
                 border: "1px solid var(--border)",
                 boxShadow: "0 1px 4px rgba(44,36,22,0.05)",
                 textDecoration: "none",
+                opacity: project.pdf ? 1 : 0.6,
+                cursor: project.pdf ? "pointer" : "default",
               }}
             >
               <div className="flex items-center gap-4">
@@ -57,44 +48,81 @@ export default function ArchitecturePage() {
                   className="text-3xl w-12 h-12 flex items-center justify-center rounded-xl shrink-0"
                   style={{ backgroundColor: "var(--accent-light)" }}
                 >
-                  {doc.emoji}
+                  {project.emoji}
                 </div>
-                <div className="flex-1">
-                  <p style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500, fontSize: "1.05rem" }}>
-                    {doc.title}
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="mb-0.5"
+                    style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500, fontSize: "1.05rem" }}
+                  >
+                    {project.title}
                   </p>
-                  <p className="text-sm mt-0.5" style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontStyle: "italic", color: "var(--ink-light)" }}>
-                    {doc.desc}
+                  <p
+                    className="text-sm leading-relaxed mb-2"
+                    style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontStyle: "italic", color: "var(--ink-light)" }}
+                  >
+                    {project.description}
                   </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {project.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs px-2.5 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: "var(--accent-light)",
+                          color: "var(--accent)",
+                          fontFamily: "var(--font-inter, Inter, sans-serif)",
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <span className="text-xs shrink-0" style={{ color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
-                  Open PDF →
-                </span>
+                {project.pdf && (
+                  <span
+                    className="text-xs shrink-0"
+                    style={{ color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+                  >
+                    Open PDF →
+                  </span>
+                )}
               </div>
             </a>
           ))}
+
+          {projects.length === 0 && (
+            <p className="text-center py-16" style={{ color: "var(--ink-light)", fontStyle: "italic", fontFamily: "var(--font-lora, Georgia, serif)" }}>
+              ยังไม่มีโปรเจกต์...
+            </p>
+          )}
         </div>
 
-        {/* PDF Preview — first doc */}
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{ border: "1px solid var(--border)", boxShadow: "0 1px 4px rgba(44,36,22,0.05)" }}
-        >
+        {/* PDF Preview */}
+        {preview && (
           <div
-            className="px-6 py-3 flex items-center justify-between"
-            style={{ backgroundColor: "var(--warm-white)", borderBottom: "1px solid var(--border)" }}
+            className="rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--border)", boxShadow: "0 1px 4px rgba(44,36,22,0.05)" }}
           >
-            <p className="text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
-              Preview — ETH Architecture
-            </p>
+            <div
+              className="px-6 py-3 flex items-center justify-between"
+              style={{ backgroundColor: "var(--warm-white)", borderBottom: "1px solid var(--border)" }}
+            >
+              <p
+                className="text-sm"
+                style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
+              >
+                Preview — {preview.title}
+              </p>
+            </div>
+            <iframe
+              src={`/${encodeURIComponent(preview.pdf)}`}
+              className="w-full"
+              style={{ height: "70vh", border: "none" }}
+              title={preview.title}
+            />
           </div>
-          <iframe
-            src="/eth_architecture_Aomsin.pdf.pdf"
-            className="w-full"
-            style={{ height: "70vh", border: "none" }}
-            title="ETH Architecture PDF"
-          />
-        </div>
+        )}
       </main>
 
       <footer
