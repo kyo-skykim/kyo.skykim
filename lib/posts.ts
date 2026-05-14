@@ -32,7 +32,7 @@ export function getAllPosts(): PostMeta[] {
       date: data.date ?? "",
       excerpt: data.excerpt ?? "",
       mood: data.mood ?? "😊",
-      tags: data.tags ?? [],
+      tags: Array.isArray(data.tags) ? data.tags : [],
       coverEmoji: data.coverEmoji ?? "📔",
     } as PostMeta;
   });
@@ -54,7 +54,7 @@ export async function getPost(slug: string): Promise<Post | null> {
     date: data.date ?? "",
     excerpt: data.excerpt ?? "",
     mood: data.mood ?? "😊",
-    tags: data.tags ?? [],
+    tags: Array.isArray(data.tags) ? data.tags : [],
     coverEmoji: data.coverEmoji ?? "📔",
     content: processed.toString(),
   };
