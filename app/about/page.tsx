@@ -1,90 +1,13 @@
 import Nav from "@/components/Nav";
-
-const experience = [
-  {
-    year: "2023 – Present",
-    role: "Mathematics Tutor",
-    company: "Ratchaburi, Thailand",
-    items: [
-      "Analyzed student data to identify learning gaps and optimize teaching strategies.",
-      "Simplified complex concepts for clear and effective communication.",
-    ],
-  },
-  {
-    year: "2021 – 2022",
-    role: "Staff of Academic Olympiad Camp (POSN2)",
-    company: "Silpakorn University",
-    items: [
-      "Collected and cleaned student data from Excel (survey responses)",
-      "Built interactive dashboard using Looker Studio",
-      "Analyzed food allergies, medical conditions, and insurance data",
-      "Supported planning and risk management using data insights",
-    ],
-  },
-  {
-    year: "2020 – 2022",
-    role: "Student Council",
-    company: "Faculty of Science, Silpakorn University",
-    items: [
-      "Assisted in planning and managing faculty events with large student participation",
-      "Promoted to vice leader in 2022",
-    ],
-  },
-];
-
-const research = [
-  {
-    year: "2026 (In Progress)",
-    title: "Automated Ethereum Data Pipeline & Anomaly Detection",
-    type: "Independent Study",
-    pdf: "kyo_miniproject_datapipeline for ETH.pdf",
-    items: [
-      "Developed an end-to-end ETL pipeline using Python to extract Ethereum data with robust error handling.",
-      "Processed and transformed data using PySpark and Spark SQL on Databricks.",
-      "Applied statistical methods using SQL window functions to detect price spikes and crashes.",
-      "Designed dashboard to visualize data-driven insights.",
-    ],
-  },
-  {
-    year: "2022",
-    title: "Injectivity and quasi-injectivity of products of some polynomials and Dedekind psi function",
-    type: "Undergraduate Research Project",
-    pdf: null,
-    items: [
-      "Applied MATLAB to analyze numerical patterns and detect duplicate function outputs",
-      "Performed data matching and validation using Excel",
-      "Documented findings and presented analytical results in a structured format",
-    ],
-  },
-];
-
-const education = [
-  { year: "2026 – Present", degree: "Data Engineering Bootcamp (In Progress)", school: "Databricks for Data Engineers Bootcamp 2 · Thailand" },
-  { year: "2017 – 2022", degree: "Bachelor of Science (Mathematics)", school: "Silpakorn University · Nakhon Pathom, Thailand" },
-  { year: "2012 – 2017", degree: "Benjamarachutit Ratchaburi School", school: "Ratchaburi, Thailand" },
-];
-
-const skills = [
-  { category: "Data Engineering", items: ["ETL/ELT Pipelines", "Data Modeling (Star Schema)", "Delta Lake"] },
-  { category: "Data Analysis", items: ["EDA", "Statistical Analysis", "Data Cleaning"] },
-  { category: "Data Visualization", items: ["Looker Studio", "Databricks", "Excel"] },
-  { category: "Programming", items: ["Python", "PySpark", "NumPy", "Pandas", "SQL", "R", "MATLAB"] },
-  { category: "Tools", items: ["Databricks", "Excel", "PowerPoint", "LaTeX", "AI"] },
-];
-
-const certifications = [
-  "Data Science for Everyone — Future Skills (2026)",
-  "Power BI Data Transformation (Power Query) — Future Skills (2026)",
-  "AI with Data Visualization — Future Skills (2025)",
-  "SQL for Data Analysis — Future Skills (2025)",
-  "Push It with Data — Chula MOOC (2025)",
-];
-
-const languages = [
-  { lang: "Thai", level: "Native" },
-  { lang: "English", level: "Intermediate" },
-  { lang: "Japanese", level: "Beginning" },
-];
+import {
+  profile,
+  experience,
+  research,
+  education,
+  skills,
+  certifications,
+  languages,
+} from "@/content/about";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -119,46 +42,35 @@ export default function AboutPage() {
               className="text-3xl mb-1"
               style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}
             >
-              Chonlathit Phuncam
+              {profile.name}
             </h1>
             <p className="text-sm mb-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
-              Data Engineer · Ratchaburi, Thailand
+              {profile.role} · {profile.location}
             </p>
             <div className="flex flex-wrap gap-3 text-xs" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
-              <span>090-6324894</span>
-              <a href="mailto:phuncam.c@gmail.com" className="hover:opacity-70">phuncam.c@gmail.com</a>
-              <a href="https://www.linkedin.com/in/chonlathitp" target="_blank" rel="noopener noreferrer" className="hover:opacity-70">LinkedIn</a>
-              <a href="https://linktr.ee/kyo.skykim" target="_blank" rel="noopener noreferrer" className="hover:opacity-70">Linktree</a>
+              <span>{profile.phone}</span>
+              <a href={`mailto:${profile.email}`} className="hover:opacity-70">{profile.email}</a>
+              <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">LinkedIn</a>
+              <a href={profile.linktree} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">Linktree</a>
             </div>
           </div>
         </section>
 
         {/* Profile Summary */}
-        <div
-          className="rounded-2xl p-6"
-          style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}
-        >
-          <p
-            className="leading-relaxed"
-            style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontStyle: "italic", color: "var(--ink-light)", fontSize: "0.95rem" }}
-          >
-            Bachelor of Science in Mathematics with coursework in Mathematical Analysis, Applied Mathematics and Elementary Statistics.
-            Currently attending a Data Engineering intensive bootcamp. Adept at logical problem-solving and applying mathematical
-            principles to analyze complex datasets and support data-driven decision-making.
+        <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}>
+          <p className="leading-relaxed" style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontStyle: "italic", color: "var(--ink-light)", fontSize: "0.95rem" }}>
+            {profile.summary}
           </p>
         </div>
 
         {/* CV Download */}
-        <div
-          className="rounded-2xl p-6 flex items-center justify-between"
-          style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}
-        >
+        <div className="rounded-2xl p-6 flex items-center justify-between" style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}>
           <div>
             <p style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>Curriculum Vitae</p>
-            <p className="text-sm" style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>CV_Conlathit_Phuncam.pdf</p>
+            <p className="text-sm" style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{profile.cv}</p>
           </div>
           <a
-            href="/CV_Conlathit_Phuncam.pdf"
+            href={`/${profile.cv}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm px-5 py-2 rounded-full transition-opacity hover:opacity-70"
