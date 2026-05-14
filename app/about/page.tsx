@@ -137,14 +137,6 @@ export default function AboutPage() {
                     ))}
                   </ul>
                 </div>
-                {r.pdf && (
-                  <iframe
-                    src={`/${encodeURIComponent(r.pdf)}`}
-                    className="w-full"
-                    style={{ height: "60vh", border: "none", borderTop: "1px solid var(--border)" }}
-                    title={r.title}
-                  />
-                )}
               </div>
             ))}
           </div>
