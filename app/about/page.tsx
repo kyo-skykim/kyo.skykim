@@ -37,6 +37,7 @@ const research = [
     year: "2026 (In Progress)",
     title: "Automated Ethereum Data Pipeline & Anomaly Detection",
     type: "Independent Study",
+    pdf: "eth_architecture_Aomsin.pdf.pdf",
     items: [
       "Developed an end-to-end ETL pipeline using Python to extract Ethereum data with robust error handling.",
       "Processed and transformed data using PySpark and Spark SQL on Databricks.",
@@ -48,6 +49,7 @@ const research = [
     year: "2022",
     title: "Injectivity and quasi-injectivity of products of some polynomials and Dedekind psi function",
     type: "Undergraduate Research Project",
+    pdf: null,
     items: [
       "Applied MATLAB to analyze numerical patterns and detect duplicate function outputs",
       "Performed data matching and validation using Excel",
@@ -194,21 +196,44 @@ export default function AboutPage() {
         <Section title="Research Projects">
           <div className="space-y-4">
             {research.map((r, i) => (
-              <div key={i} className="rounded-2xl p-5" style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}>
-                <div className="flex items-start justify-between gap-4 mb-2">
-                  <div>
-                    <p style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500, fontSize: "0.95rem" }}>{r.title}</p>
-                    <p className="text-sm" style={{ color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{r.type}</p>
+              <div key={i} className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}>
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <div className="flex-1">
+                      <p style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500, fontSize: "0.95rem" }}>{r.title}</p>
+                      <p className="text-sm" style={{ color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{r.type}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs" style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{r.year}</span>
+                      {r.pdf && (
+                        <a
+                          href={`/${encodeURIComponent(r.pdf)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-3 py-1 rounded-full transition-opacity hover:opacity-70"
+                          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+                        >
+                          PDF ↗
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-xs shrink-0 mt-1" style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{r.year}</span>
+                  <ul className="space-y-1">
+                    {r.items.map((item, j) => (
+                      <li key={j} className="text-sm flex gap-2" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink-light)", fontStyle: "italic" }}>
+                        <span style={{ color: "var(--accent)" }}>·</span>{item}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="space-y-1">
-                  {r.items.map((item, j) => (
-                    <li key={j} className="text-sm flex gap-2" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink-light)", fontStyle: "italic" }}>
-                      <span style={{ color: "var(--accent)" }}>·</span>{item}
-                    </li>
-                  ))}
-                </ul>
+                {r.pdf && (
+                  <iframe
+                    src={`/${encodeURIComponent(r.pdf)}`}
+                    className="w-full"
+                    style={{ height: "60vh", border: "none", borderTop: "1px solid var(--border)" }}
+                    title={r.title}
+                  />
+                )}
               </div>
             ))}
           </div>
