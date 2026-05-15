@@ -10,6 +10,16 @@
   --border: #e8ddd0;
 }
 
+[data-theme="dark"] {
+  --cream: #1a1714;
+  --warm-white: #221f1a;
+  --ink: #ede4d4;
+  --ink-light: #a89880;
+  --accent: #c9956b;
+  --accent-light: #2e2218;
+  --border: #3a3028;
+}
+
 body {
   background-color: var(--cream);
   color: var(--ink);

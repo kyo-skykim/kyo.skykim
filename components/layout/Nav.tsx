@@ -1,7 +1,9 @@
 import Link from "next/link";
+import DarkModeToggle from "@/components/ui/DarkModeToggle";
 
 const links = [
   { href: "/", label: "Diary" },
+  { href: "/gallery", label: "Gallery" },
   { href: "/about", label: "About" },
 ];
 
@@ -18,17 +20,20 @@ export default function Nav() {
         >
           My Diary
         </Link>
-        <div className="flex gap-5">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="text-sm transition-opacity hover:opacity-60"
-              style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <div className="flex items-center gap-4">
+          <div className="flex gap-5">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-sm transition-opacity hover:opacity-60"
+                style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+          <DarkModeToggle />
         </div>
       </div>
     </nav>

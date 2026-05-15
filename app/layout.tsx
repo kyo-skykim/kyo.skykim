@@ -28,6 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${lora.variable} ${inter.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}` }} />
+      </head>
       <body
         className="min-h-screen"
         style={{ backgroundColor: "var(--cream)", color: "var(--ink)" }}
