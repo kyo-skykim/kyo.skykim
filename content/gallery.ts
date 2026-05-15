@@ -1,3 +1,8 @@
+export const photos: Photo[] = [
+  { src: "shabu_2_may_2026.jpg", caption: "I love shabuuuuu", date: "2026-05-02", location: "Park Chula" },
+
+
+
 export type Photo = {
   src: string;       // path inside public/, e.g. "gallery/photo1.jpg"
   caption?: string;
