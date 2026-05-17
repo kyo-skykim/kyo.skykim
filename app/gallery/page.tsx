@@ -37,7 +37,7 @@ export default function GalleryPage() {
             </p>
           </div>
         ) : (
-          <GalleryGrid photos={photos} />
+          <GalleryGrid photos={[...photos].sort((a, b) => Date.parse(b.date ?? "") - Date.parse(a.date ?? ""))} />
         )}
       </main>
 
