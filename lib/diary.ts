@@ -26,7 +26,7 @@ function toTimestamp(dateStr: string): number {
 }
 
 export function getAllPosts(): PostMeta[] {
-  const files = fs.readdirSync(postsDir).filter((f) => f.endsWith(".md"));
+  const files = fs.readdirSync(postsDir).filter((f) => !f.startsWith("."));
   const posts = files.map((filename) => {
     const slug = filename.replace(/\.md$/, "");
     const raw = fs.readFileSync(path.join(postsDir, filename), "utf-8");
@@ -46,7 +46,9 @@ export function getAllPosts(): PostMeta[] {
 }
 
 export async function getPost(slug: string): Promise<Post | null> {
-  const filePath = path.join(postsDir, `${slug}.md`);
+  const filePath = fs.existsSync(path.join(postsDir, `${slug}.md`))
+    ? path.join(postsDir, `${slug}.md`)
+    : path.join(postsDir, slug);
   if (!fs.existsSync(filePath)) return null;
 
   const raw = fs.readFileSync(filePath, "utf-8");
