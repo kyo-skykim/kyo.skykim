@@ -11,7 +11,7 @@ export const profile = {
   linkedin: "https://www.linkedin.com/in/chonlathitp",
   cv: "CV_Conlathit_Phuncam.pdf",
   summary:
-    "Bachelor of Science in Mathematics with coursework in Mathematical Analysis, Applied Mathematics and Elementary Statistics. Currently attending a Data Engineering intensive bootcamp. Adept at logical problem-solving and applying mathematical principles to analyze complex datasets and support data-driven decision-making.",
+    "Concepts: Data Engineer, Data Visualization, Data Modeling, Financial Mathematics. Bachelor of Science in Mathematics with coursework in Mathematical Analysis, Applied Mathematics and Elementary Statistics. Currently attending a Data Engineering through intensive bootcamp training. Adept at logical problem-solving and applying mathematical principles to analyze complex datasets and support data-driven decision-making.",
 };
 
 // ------------------------------------------------------------
@@ -20,9 +20,12 @@ export const profile = {
 export const experience = [
   {
     year: "2023 – Present",
-    role: "Mathematics Tutor",
+    role: "Mathematics Tutor & Develop a tutoring website",
     company: "Ratchaburi, Thailand",
     items: [
+      "Developing website using the AI system.",
+      "Create the student system and the system administrator system.",
+      "Create a system for adding class schedules and courses.",
       "Analyzed student data to identify learning gaps and optimize teaching strategies.",
       "Simplified complex concepts for clear and effective communication.",
     ],
