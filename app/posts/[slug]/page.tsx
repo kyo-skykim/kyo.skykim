@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPost, getAllPosts, formatDate } from "@/lib/diary";
+import { getPost, getAllPosts, getRelatedPosts, formatDate } from "@/lib/diary";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -14,13 +14,30 @@ export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) return {};
-  return { title: `${post.title} — My Diary`, description: post.excerpt };
+  const title = `${post.title} — My Diary`;
+  return {
+    title,
+    description: post.excerpt,
+    openGraph: {
+      title,
+      description: post.excerpt,
+      type: "article",
+      url: `/posts/${slug}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: post.excerpt,
+    },
+  };
 }
 
 export default async function PostPage({ params }: Props) {
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) notFound();
+
+  const related = getRelatedPosts(slug, post.tags);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--cream)" }}>
@@ -59,6 +76,13 @@ export default async function PostPage({ params }: Props) {
             >
               {formatDate(post.date)}
             </time>
+            <span className="text-sm" style={{ color: "var(--ink-light)" }}>·</span>
+            <span
+              className="text-sm"
+              style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
+            >
+              อ่าน {post.readingTime} นาที
+            </span>
           </div>
 
           <h1
@@ -126,6 +150,49 @@ export default async function PostPage({ params }: Props) {
             className="diary-prose"
           />
         </article>
+
+        {/* Related posts */}
+        {related.length > 0 && (
+          <section className="mt-12">
+            <h2
+              className="text-lg mb-4"
+              style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}
+            >
+              บันทึกอื่น ๆ
+            </h2>
+            <div className="space-y-3">
+              {related.map((r) => (
+                <Link key={r.slug} href={`/posts/${r.slug}`}>
+                  <article
+                    className="rounded-2xl p-4 flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+                    style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}
+                  >
+                    <div
+                      className="text-2xl w-11 h-11 flex items-center justify-center rounded-xl shrink-0"
+                      style={{ backgroundColor: "var(--accent-light)" }}
+                    >
+                      {r.coverEmoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="leading-snug truncate"
+                        style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}
+                      >
+                        {r.title}
+                      </p>
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}
+                      >
+                        {formatDate(r.date)} · อ่าน {r.readingTime} นาที
+                      </p>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Back */}
         <div className="mt-10 text-center">

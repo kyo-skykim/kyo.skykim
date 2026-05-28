@@ -1,8 +1,10 @@
 import Nav from "@/components/layout/Nav";
 import GalleryGrid from "@/components/ui/GalleryGrid";
-import { photos } from "@/content/gallery";
+import { getAllPhotos } from "@/lib/gallery";
 
 export default function GalleryPage() {
+  const photos = getAllPhotos();
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--cream)" }}>
       <Nav />
@@ -37,7 +39,7 @@ export default function GalleryPage() {
             </p>
           </div>
         ) : (
-          <GalleryGrid photos={[...photos].sort((a, b) => Date.parse(b.date ?? "") - Date.parse(a.date ?? ""))} />
+          <GalleryGrid photos={photos} />
         )}
       </main>
 

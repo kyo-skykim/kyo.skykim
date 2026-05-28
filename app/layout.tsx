@@ -17,8 +17,23 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "My Diary",
+  metadataBase: new URL("https://kyo-skykim.vercel.app"),
+  title: {
+    default: "My Diary",
+    template: "%s",
+  },
   description: "A personal diary and lifestyle blog",
+  openGraph: {
+    title: "My Diary",
+    description: "บันทึกเล็กๆ ของชีวิตประจำวัน",
+    type: "website",
+    siteName: "My Diary",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "My Diary",
+    description: "บันทึกเล็กๆ ของชีวิตประจำวัน",
+  },
 };
 
 export default function RootLayout({

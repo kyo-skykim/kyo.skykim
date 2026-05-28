@@ -14,6 +14,7 @@ export interface PostMeta {
   mood: string;
   tags: string[];
   coverEmoji: string;
+  readingTime: number;
 }
 
 export interface Post extends PostMeta {
@@ -25,12 +26,18 @@ function toTimestamp(dateStr: string): number {
   return isNaN(ts) ? 0 : ts;
 }
 
+// นับเวลาอ่านโดยประมาณ — ภาษาไทยใช้จำนวนตัวอักษร (~350 ตัว/นาที)
+function readingMinutes(text: string): number {
+  const chars = text.replace(/\s+/g, "").length;
+  return Math.max(1, Math.round(chars / 350));
+}
+
 export function getAllPosts(): PostMeta[] {
   const files = fs.readdirSync(postsDir).filter((f) => !f.startsWith("."));
   const posts = files.map((filename) => {
     const slug = filename.replace(/\.md$/, "");
     const raw = fs.readFileSync(path.join(postsDir, filename), "utf-8");
-    const { data } = matter(raw);
+    const { data, content } = matter(raw);
     return {
       slug,
       title: data.title ?? slug,
@@ -39,6 +46,7 @@ export function getAllPosts(): PostMeta[] {
       mood: data.mood ?? "😊",
       tags: Array.isArray(data.tags) ? data.tags : [],
       coverEmoji: data.coverEmoji ?? "📔",
+      readingTime: readingMinutes(content),
     } as PostMeta;
   });
 
@@ -63,8 +71,18 @@ export async function getPost(slug: string): Promise<Post | null> {
     mood: data.mood ?? "😊",
     tags: Array.isArray(data.tags) ? data.tags : [],
     coverEmoji: data.coverEmoji ?? "📔",
+    readingTime: readingMinutes(mdContent),
     content: processed.toString(),
   };
+}
+
+// โพสต์ที่เกี่ยวข้อง — เลือกจาก tag ที่ตรงกันมากสุด เติมด้วยโพสต์ล่าสุด
+export function getRelatedPosts(slug: string, tags: string[], limit = 3): PostMeta[] {
+  const others = getAllPosts().filter((p) => p.slug !== slug);
+  const scored = others
+    .map((p) => ({ post: p, score: p.tags.filter((t) => tags.includes(t)).length }))
+    .sort((a, b) => b.score - a.score || toTimestamp(b.post.date) - toTimestamp(a.post.date));
+  return scored.slice(0, limit).map((s) => s.post);
 }
 
 export function formatDate(dateStr: string): string {

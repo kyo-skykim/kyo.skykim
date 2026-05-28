@@ -69,6 +69,13 @@ export default function Home() {
                       >
                         {formatDate(post.date)}
                       </time>
+                      <span className="text-xs" style={{ color: "var(--ink-light)" }}>·</span>
+                      <span
+                        className="text-xs"
+                        style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
+                      >
+                        อ่าน {post.readingTime} นาที
+                      </span>
                     </div>
 
                     <h2

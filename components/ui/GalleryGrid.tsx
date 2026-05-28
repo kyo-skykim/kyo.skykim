@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Photo } from "@/content/gallery";
+import type { Photo } from "@/lib/gallery";
 
 export default function GalleryGrid({ photos }: { photos: Photo[] }) {
   const [zoomed, setZoomed] = useState<Photo | null>(null);
