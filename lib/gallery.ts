@@ -1,15 +1,30 @@
 import fs from "fs";
 import path from "path";
-import { captions, PhotoMeta } from "@/content/gallery";
 
 const galleryDir = path.join(process.cwd(), "public/gallery");
+const metaFile = path.join(process.cwd(), "content/gallery.json");
 const IMAGE_RE = /\.(jpe?g|png|webp|gif|avif)$/i;
 
+export type PhotoMeta = {
+  caption?: string;
+  date?: string;     // e.g. "2026-05-14" — ถ้าไม่ใส่จะเรียงตามเวลาที่ upload
+  location?: string;
+};
+
 export type Photo = PhotoMeta & { src: string; file: string };
+
+function readMeta(): Record<string, PhotoMeta> {
+  try {
+    return JSON.parse(fs.readFileSync(metaFile, "utf-8"));
+  } catch {
+    return {};
+  }
+}
 
 export function getAllPhotos(): Photo[] {
   if (!fs.existsSync(galleryDir)) return [];
 
+  const captions = readMeta();
   const files = fs.readdirSync(galleryDir).filter((f) => IMAGE_RE.test(f));
 
   const photos = files.map((file) => {
