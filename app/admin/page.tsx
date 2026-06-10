@@ -1294,15 +1294,84 @@ function ExperienceEditor({ item, onChange }: { item: AboutData["experience"][0]
   );
 }
 
+// ช่องไฟล์แนบ — พิมพ์ชื่อไฟล์เอง หรือกดปุ่มอัพไฟล์จริงขึ้น GitHub แล้วใส่ชื่อให้อัตโนมัติ
+function FileField({ label, value, accept, onChange }: {
+  label: string;
+  value: string;
+  accept: string;
+  onChange: (v: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const inputId = `file-field-${label.replace(/\W/g, "")}`;
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (f.size > 4 * 1024 * 1024) {
+      setError("ไฟล์ใหญ่เกิน 4MB");
+      return;
+    }
+    setUploading(true);
+    setError("");
+    const form = new FormData();
+    form.append("file", f);
+    const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+    const data = await res.json().catch(() => ({}));
+    setUploading(false);
+    if (res.ok) onChange(data.filename);
+    else setError(data.error ?? "อัพโหลดไม่สำเร็จ");
+  }
+
+  return (
+    <div>
+      <label className="block text-xs" style={labelStyle}>
+        {label}
+        <div className="flex gap-2 mt-1">
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="ยังไม่มีไฟล์"
+            className="flex-1 rounded-xl px-3 py-1.5 outline-none text-sm min-w-0"
+            style={inputStyle}
+          />
+          <input id={inputId} type="file" accept={accept} onChange={upload} className="hidden" />
+          <label
+            htmlFor={inputId}
+            className="text-xs px-3 py-1.5 rounded-full cursor-pointer transition-opacity hover:opacity-80 shrink-0 flex items-center"
+            style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+          >
+            {uploading ? "กำลังอัพ..." : "📎 อัพไฟล์"}
+          </label>
+        </div>
+      </label>
+      {error && <p className="text-xs mt-1" style={{ color: "#b3553a", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{error}</p>}
+    </div>
+  );
+}
+
 function ResearchEditor({ item, onChange }: { item: AboutData["research"][0]; onChange: (item: AboutData["research"][0]) => void }) {
   return (
     <div className="space-y-2">
-      {(["year", "title", "type", "pdf", "image"] as const).map((key) => (
+      {(["year", "title", "type"] as const).map((key) => (
         <label key={key} className="block text-xs" style={labelStyle}>
           {key}
           <input value={item[key] ?? ""} onChange={(e) => onChange({ ...item, [key]: e.target.value })} className="mt-1 w-full rounded-xl px-3 py-1.5 outline-none text-sm" style={inputStyle} />
         </label>
       ))}
+      <FileField
+        label="pdf (เอกสารโปรเจค)"
+        value={item.pdf ?? ""}
+        accept="application/pdf"
+        onChange={(v) => onChange({ ...item, pdf: v })}
+      />
+      <FileField
+        label="image (รูปประกอบ)"
+        value={item.image ?? ""}
+        accept="image/*"
+        onChange={(v) => onChange({ ...item, image: v })}
+      />
       <p className="text-xs" style={labelStyle}>items</p>
       <ItemsEditor items={item.items} onChange={(updatedItems) => onChange({ ...item, items: updatedItems })} />
     </div>
