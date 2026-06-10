@@ -15,6 +15,7 @@ export interface PostMeta {
   tags: string[];
   coverEmoji: string;
   readingTime: number;
+  draft?: boolean;
 }
 
 export interface Post extends PostMeta {
@@ -32,22 +33,41 @@ function readingMinutes(text: string): number {
   return Math.max(1, Math.round(chars / 350));
 }
 
+function parsePostMeta(filename: string, raw: string): PostMeta {
+  const slug = filename.replace(/\.md$/, "");
+  const { data, content } = matter(raw);
+  return {
+    slug,
+    title: data.title ?? slug,
+    date: data.date ?? "",
+    excerpt: data.excerpt ?? "",
+    mood: data.mood ?? "😊",
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    coverEmoji: data.coverEmoji ?? "📔",
+    readingTime: readingMinutes(content),
+    ...(data.draft === true ? { draft: true } : {}),
+  };
+}
+
+// สาธารณะ — กรองโพสต์ draft ออก
 export function getAllPosts(): PostMeta[] {
   const files = fs.readdirSync(postsDir).filter((f) => !f.startsWith("."));
+  const posts = files
+    .map((filename) => {
+      const raw = fs.readFileSync(path.join(postsDir, filename), "utf-8");
+      return parsePostMeta(filename, raw);
+    })
+    .filter((p) => !p.draft);
+
+  return posts.sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
+}
+
+// Admin — รวมโพสต์ draft ด้วย
+export function getAllPostsAdmin(): PostMeta[] {
+  const files = fs.readdirSync(postsDir).filter((f) => !f.startsWith("."));
   const posts = files.map((filename) => {
-    const slug = filename.replace(/\.md$/, "");
     const raw = fs.readFileSync(path.join(postsDir, filename), "utf-8");
-    const { data, content } = matter(raw);
-    return {
-      slug,
-      title: data.title ?? slug,
-      date: data.date ?? "",
-      excerpt: data.excerpt ?? "",
-      mood: data.mood ?? "😊",
-      tags: Array.isArray(data.tags) ? data.tags : [],
-      coverEmoji: data.coverEmoji ?? "📔",
-      readingTime: readingMinutes(content),
-    } as PostMeta;
+    return parsePostMeta(filename, raw);
   });
 
   return posts.sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
@@ -73,6 +93,7 @@ export async function getPost(slug: string): Promise<Post | null> {
     coverEmoji: data.coverEmoji ?? "📔",
     readingTime: readingMinutes(mdContent),
     content: processed.toString(),
+    ...(data.draft === true ? { draft: true } : {}),
   };
 }
 

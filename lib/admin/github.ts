@@ -95,3 +95,53 @@ export async function readFile(path: string): Promise<string | null> {
   if (!res.ok) return null;
   return res.text();
 }
+
+export async function deleteFile(filePath: string, message: string): Promise<void> {
+  const r = repo();
+  const b = branch();
+  // ดึง SHA ของไฟล์ก่อนลบ
+  const infoRes = await fetch(
+    `${API}/repos/${r}/contents/${encodeURI(filePath)}?ref=${encodeURIComponent(b)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      cache: "no-store",
+    }
+  );
+  if (!infoRes.ok) {
+    const text = await infoRes.text();
+    throw new Error(`ไม่พบไฟล์ ${filePath}: ${infoRes.status} ${text.slice(0, 200)}`);
+  }
+  const info = await infoRes.json();
+  const sha: string = info.sha;
+
+  await gh(`/repos/${r}/contents/${encodeURI(filePath)}`, {
+    method: "DELETE",
+    body: JSON.stringify({ message, sha, branch: b }),
+  });
+}
+
+export async function listFiles(dir: string): Promise<string[]> {
+  const r = repo();
+  const b = branch();
+  const res = await fetch(
+    `${API}/repos/${r}/contents/${encodeURI(dir)}?ref=${encodeURIComponent(b)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) return [];
+  const items = await res.json();
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((item: { type: string; name: string }) => item.type === "file")
+    .map((item: { name: string }) => item.name);
+}

@@ -1,5 +1,5 @@
 import { isLoggedIn } from "@/lib/admin/auth";
-import { isConfigured, commitFiles, readFile } from "@/lib/admin/github";
+import { isConfigured, commitFiles, deleteFile, readFile, listFiles } from "@/lib/admin/github";
 
 function bangkokToday(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
@@ -15,6 +15,54 @@ function makeFilename(originalName: string): string {
   return `photo-${stamp}-${rand}.${ext}`;
 }
 
+type GalleryMeta = Record<string, { caption?: string; date?: string; location?: string }>;
+
+async function readGalleryMeta(): Promise<GalleryMeta> {
+  const metaRaw = await readFile("content/gallery.json");
+  try {
+    return metaRaw ? (JSON.parse(metaRaw) as GalleryMeta) : {};
+  } catch {
+    return {};
+  }
+}
+
+// GET — list all photos
+export async function GET() {
+  if (!(await isLoggedIn())) {
+    return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
+  }
+  if (!isConfigured()) {
+    return Response.json(
+      { error: "ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Vercel (Settings → Environment Variables)" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const [meta, files] = await Promise.all([
+      readGalleryMeta(),
+      listFiles("public/gallery"),
+    ]);
+
+    // รวมรายการจาก gallery.json และ public/gallery/
+    const allFilenames = Array.from(
+      new Set([...Object.keys(meta), ...files.filter((f) => /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(f))])
+    );
+
+    const photos = allFilenames.map((filename) => ({
+      filename,
+      caption: meta[filename]?.caption ?? "",
+      location: meta[filename]?.location ?? "",
+      date: meta[filename]?.date ?? "",
+    }));
+
+    return Response.json({ photos });
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : "เกิดข้อผิดพลาด" }, { status: 502 });
+  }
+}
+
+// POST — upload new photo
 export async function POST(request: Request) {
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
@@ -43,13 +91,7 @@ export async function POST(request: Request) {
   const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
 
   // อ่าน gallery.json ปัจจุบันจาก GitHub แล้วเพิ่ม entry ใหม่
-  const metaRaw = await readFile("content/gallery.json");
-  let meta: Record<string, unknown> = {};
-  try {
-    meta = metaRaw ? JSON.parse(metaRaw) : {};
-  } catch {
-    meta = {};
-  }
+  const meta = await readGalleryMeta();
   meta[filename] = {
     ...(caption ? { caption } : {}),
     date,
@@ -69,4 +111,83 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ ok: true, filename });
+}
+
+// PATCH — update photo metadata
+export async function PATCH(request: Request) {
+  if (!(await isLoggedIn())) {
+    return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
+  }
+  if (!isConfigured()) {
+    return Response.json(
+      { error: "ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Vercel (Settings → Environment Variables)" },
+      { status: 500 }
+    );
+  }
+
+  const body = await request.json().catch(() => null);
+  const filename = (body?.filename ?? "").trim();
+  if (!filename) {
+    return Response.json({ error: "ต้องระบุชื่อไฟล์รูป" }, { status: 400 });
+  }
+
+  const caption = String(body?.caption ?? "").trim();
+  const location = String(body?.location ?? "").trim();
+  const date = String(body?.date ?? "").trim() || bangkokToday();
+
+  const meta = await readGalleryMeta();
+  meta[filename] = {
+    ...(caption ? { caption } : {}),
+    date,
+    ...(location ? { location } : {}),
+  };
+
+  try {
+    await commitFiles(
+      [{ path: "content/gallery.json", content: JSON.stringify(meta, null, 2) + "\n", encoding: "utf-8" }],
+      `Update photo metadata: ${filename}`
+    );
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : "commit ไม่สำเร็จ" }, { status: 502 });
+  }
+
+  return Response.json({ ok: true });
+}
+
+// DELETE — delete photo and remove from gallery.json
+export async function DELETE(request: Request) {
+  if (!(await isLoggedIn())) {
+    return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
+  }
+  if (!isConfigured()) {
+    return Response.json(
+      { error: "ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Vercel (Settings → Environment Variables)" },
+      { status: 500 }
+    );
+  }
+
+  const body = await request.json().catch(() => null);
+  const filename = (body?.filename ?? "").trim();
+  if (!filename) {
+    return Response.json({ error: "ต้องระบุชื่อไฟล์รูป" }, { status: 400 });
+  }
+
+  // อ่าน gallery.json แล้วลบ entry
+  const meta = await readGalleryMeta();
+  delete meta[filename];
+  const updatedMeta = JSON.stringify(meta, null, 2) + "\n";
+
+  try {
+    // ลบไฟล์รูปและอัพเดต gallery.json ใน commit เดียว
+    // ต้องทำแยกกันเพราะ deleteFile ใช้ Contents API แต่ commitFiles ใช้ Git Data API
+    await deleteFile(`public/gallery/${filename}`, `Delete gallery photo: ${filename}`);
+    await commitFiles(
+      [{ path: "content/gallery.json", content: updatedMeta, encoding: "utf-8" }],
+      `Remove gallery entry: ${filename}`
+    );
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : "ลบรูปไม่สำเร็จ" }, { status: 502 });
+  }
+
+  return Response.json({ ok: true });
 }
