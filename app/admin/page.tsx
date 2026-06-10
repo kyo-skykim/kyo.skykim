@@ -1213,7 +1213,7 @@ function AboutArrayForm<T>({
           <div className="flex gap-2">
             <button
               disabled={busy}
-              onClick={() => save([...items, newItem])}
+              onClick={() => save([newItem, ...items])}
               className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80 disabled:opacity-40"
               style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
             >
