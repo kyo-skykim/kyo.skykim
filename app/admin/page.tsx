@@ -482,13 +482,33 @@ function PhotoForm() {
 
   return (
     <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
-      <label className="block text-sm" style={labelStyle}>
-        เลือกรูป
-        <input type="file" accept="image/*" onChange={pick} className="mt-2 w-full text-sm" style={{ color: "var(--ink-light)" }} />
-      </label>
-      {preview && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={preview} alt="preview" className="w-full rounded-xl" style={{ border: "1px solid var(--border)" }} />
+      <input id="photo-file-input" type="file" accept="image/*" onChange={pick} className="hidden" />
+      {!preview ? (
+        <label
+          htmlFor="photo-file-input"
+          className="block rounded-2xl py-12 text-center cursor-pointer transition-opacity hover:opacity-80"
+          style={{ border: "2px dashed var(--accent)", backgroundColor: "var(--accent-light)" }}
+        >
+          <span className="block text-4xl mb-2">📷</span>
+          <span className="block text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)", fontWeight: 500 }}>
+            แตะที่นี่เพื่อเลือกรูป
+          </span>
+          <span className="block text-xs mt-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
+            เลือกจากอัลบั้มหรือถ่ายใหม่ได้เลย
+          </span>
+        </label>
+      ) : (
+        <div className="space-y-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={preview} alt="preview" className="w-full rounded-xl" style={{ border: "1px solid var(--border)" }} />
+          <label
+            htmlFor="photo-file-input"
+            className="block text-center text-sm py-2 rounded-full cursor-pointer transition-opacity hover:opacity-80"
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+          >
+            🔄 เปลี่ยนรูป
+          </label>
+        </div>
       )}
       <label className="block text-sm" style={labelStyle}>
         คำบรรยาย
