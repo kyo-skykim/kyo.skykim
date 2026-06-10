@@ -38,30 +38,33 @@ export async function POST(request: Request) {
   const mood = (body?.mood ?? "😊").trim() || "😊";
   const coverEmoji = (body?.coverEmoji ?? "📔").trim() || "📔";
   const excerpt = (body?.excerpt ?? "").trim() || content.replace(/\s+/g, " ").slice(0, 90);
-  const tags = String(body?.tags ?? "")
-    .split(",")
-    .map((t: string) => t.trim())
-    .filter(Boolean);
+  const tags = Array.isArray(body?.tags)
+    ? body.tags.map((t: string) => String(t).trim()).filter(Boolean)
+    : String(body?.tags ?? "")
+        .split(",")
+        .map((t: string) => t.trim())
+        .filter(Boolean);
+  const draft = body?.draft === true;
 
   const now = bangkokNow();
+  const date = (body?.date ?? "").trim() || now;
   let slug = makeSlug(title, now);
   if (await fileExists(`content/diary/${slug}.md`)) {
     slug = `${slug}-${now.slice(11, 16).replace(":", "")}`;
   }
 
-  const md = [
+  const mdLines = [
     "---",
     `title: ${JSON.stringify(title)}`,
-    `date: "${now}"`,
+    `date: "${date}"`,
     `excerpt: ${JSON.stringify(excerpt)}`,
     `mood: ${JSON.stringify(mood)}`,
     `tags: ${JSON.stringify(tags)}`,
     `coverEmoji: ${JSON.stringify(coverEmoji)}`,
-    "---",
-    "",
-    content,
-    "",
-  ].join("\n");
+  ];
+  if (draft) mdLines.push("draft: true");
+  mdLines.push("---", "", content, "");
+  const md = mdLines.join("\n");
 
   try {
     await commitFiles(

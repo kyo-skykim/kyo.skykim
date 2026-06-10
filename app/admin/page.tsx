@@ -191,6 +191,14 @@ function StatusMessage({ status }: { status: { ok: boolean; text: string } | nul
   );
 }
 
+// แปลงวันที่ให้ตรงรูปแบบ datetime-local ("YYYY-MM-DDTHH:mm") — ไม่งั้นช่อง input จะว่างแล้ววันที่เดิมหาย
+function toDatetimeLocal(date: string): string {
+  if (!date) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T00:00`;
+  const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(date);
+  return m ? `${m[1]}T${m[2]}` : "";
+}
+
 function DiaryForm({ initial, onSaved }: {
   initial?: {
     slug?: string;
@@ -212,7 +220,7 @@ function DiaryForm({ initial, onSaved }: {
   const [coverEmoji, setCoverEmoji] = useState(initial?.coverEmoji ?? "📔");
   const [tags, setTags] = useState(initial?.tags?.join(", ") ?? "");
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
-  const [date, setDate] = useState(initial?.date ?? "");
+  const [date, setDate] = useState(toDatetimeLocal(initial?.date ?? ""));
   const [draft, setDraft] = useState(initial?.draft ?? false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
