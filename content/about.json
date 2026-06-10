@@ -67,6 +67,17 @@
         "Performed data matching and validation using Excel",
         "Documented findings and presented analytical results in a structured format"
       ]
+    },
+    {
+      "year": "2026",
+      "title": "Wind Speed Intelligence Platform: Medallion ETL, Predictive ML & Visualization",
+      "type": "",
+      "items": [
+        "Developed an end-to-end ETL pipeline on 151 days of wind data using Python & pandas.",
+        "Forecast daily calm wind with SARIMAX model(Time Series).",
+        "Trained ML models to predict & group weather days (Random Forest, K-Means) with scikit-learn.",
+        "Built 2 interactive HTML dashboards for business and data science views"
+      ]
     }
   ],
   "education": [
@@ -89,23 +100,49 @@
   "skills": [
     {
       "category": "Data Engineering",
-      "items": ["ETL/ELT Pipelines", "Data Modeling (Star Schema)", "Delta Lake"]
+      "items": [
+        "ETL/ELT Pipelines",
+        "Data Modeling (Star Schema)",
+        "Delta Lake"
+      ]
     },
     {
       "category": "Data Analysis",
-      "items": ["EDA", "Statistical Analysis", "Data Cleaning"]
+      "items": [
+        "EDA",
+        "Statistical Analysis",
+        "Data Cleaning"
+      ]
     },
     {
       "category": "Data Visualization",
-      "items": ["Looker Studio", "Databricks", "Excel"]
+      "items": [
+        "Looker Studio",
+        "Databricks",
+        "Excel"
+      ]
     },
     {
       "category": "Programming",
-      "items": ["Python", "PySpark", "NumPy", "Pandas", "SQL", "R", "MATLAB"]
+      "items": [
+        "Python",
+        "PySpark",
+        "NumPy",
+        "Pandas",
+        "SQL",
+        "R",
+        "MATLAB"
+      ]
     },
     {
       "category": "Tools",
-      "items": ["Databricks", "Excel", "PowerPoint", "LaTeX", "AI"]
+      "items": [
+        "Databricks",
+        "Excel",
+        "PowerPoint",
+        "LaTeX",
+        "AI"
+      ]
     }
   ],
   "certifications": [
@@ -116,8 +153,17 @@
     "Push It with Data — Chula MOOC (2025)"
   ],
   "languages": [
-    { "lang": "Thai", "level": "Native" },
-    { "lang": "English", "level": "Intermediate" },
-    { "lang": "Japanese", "level": "Beginning" }
+    {
+      "lang": "Thai",
+      "level": "Native"
+    },
+    {
+      "lang": "English",
+      "level": "Intermediate"
+    },
+    {
+      "lang": "Japanese",
+      "level": "Beginning"
+    }
   ]
 }
