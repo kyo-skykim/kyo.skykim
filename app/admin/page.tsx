@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
-type Tab = "new-post" | "posts" | "new-photo" | "photos" | "cv" | "about";
+type Tab = "new-post" | "posts" | "new-photo" | "photos" | "music" | "cv" | "about";
 type AboutSection = "profile" | "experience" | "research" | "education" | "skills" | "certifications" | "languages";
 
 const card: React.CSSProperties = {
@@ -61,6 +61,7 @@ export default function AdminPage() {
     ["posts", "✏️ โพสต์ทั้งหมด"],
     ["new-photo", "📷 รูปใหม่"],
     ["photos", "🖼️ รูปทั้งหมด"],
+    ["music", "🎵 เพลง"],
     ["cv", "📄 CV"],
     ["about", "👤 About"],
   ];
@@ -120,6 +121,7 @@ export default function AdminPage() {
             {tab === "posts" && <PostsList />}
             {tab === "new-photo" && <PhotoForm />}
             {tab === "photos" && <PhotosList />}
+            {tab === "music" && <MusicManager />}
             {tab === "cv" && <CvForm />}
             {tab === "about" && <AboutEditor />}
           </>
@@ -674,6 +676,214 @@ function PhotosList() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+interface MusicTrack {
+  type: "youtube" | "file";
+  title: string;
+  artist?: string;
+  src: string;
+}
+
+function MusicManager() {
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"youtube" | "file">("youtube");
+
+  // YouTube form
+  const [ytUrl, setYtUrl] = useState("");
+  const [ytTitle, setYtTitle] = useState("");
+  const [ytArtist, setYtArtist] = useState("");
+
+  // File form
+  const [musicFile, setMusicFile] = useState<File | null>(null);
+  const [fileTitle, setFileTitle] = useState("");
+  const [fileArtist, setFileArtist] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch("/api/admin/music");
+    const data = await res.json().catch(() => ({}));
+    setLoading(false);
+    if (res.ok) setTracks(data.tracks ?? []);
+    else setStatus({ ok: false, text: data.error ?? "โหลดข้อมูลไม่สำเร็จ" });
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function addYouTube(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setStatus(null);
+    const res = await fetch("/api/admin/music", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: ytUrl, title: ytTitle, artist: ytArtist }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (res.ok) {
+      setStatus({ ok: true, text: "เพิ่มเพลงแล้ว! 🎉 เว็บจะอัพเดตใน 1-2 นาที" });
+      setYtUrl(""); setYtTitle(""); setYtArtist("");
+      load();
+    } else {
+      setStatus({ ok: false, text: data.error ?? "เกิดข้อผิดพลาด" });
+    }
+  }
+
+  async function addFile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!musicFile) return;
+    if (musicFile.size > 4 * 1024 * 1024) {
+      setStatus({ ok: false, text: "ไฟล์ใหญ่เกิน 4MB — ลองบีบอัดเพลง หรือใช้ลิงก์ YouTube แทน" });
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    const form = new FormData();
+    form.append("file", musicFile);
+    form.append("title", fileTitle);
+    form.append("artist", fileArtist);
+    const res = await fetch("/api/admin/music", { method: "POST", body: form });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (res.ok) {
+      setStatus({ ok: true, text: "อัพเพลงแล้ว! 🎉 เว็บจะอัพเดตใน 1-2 นาที" });
+      setMusicFile(null); setFileTitle(""); setFileArtist("");
+      load();
+    } else {
+      setStatus({ ok: false, text: data.error ?? "เกิดข้อผิดพลาด" });
+    }
+  }
+
+  async function deleteTrack(index: number, title: string) {
+    if (!confirm(`ลบเพลง "${title}" จริงๆ หรือ?`)) return;
+    const res = await fetch("/api/admin/music", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ index }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setStatus({ ok: true, text: `ลบ "${title}" แล้ว` });
+      load();
+    } else {
+      setStatus({ ok: false, text: data.error ?? "ลบไม่สำเร็จ" });
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <StatusMessage status={status} />
+
+      {/* รายการเพลง */}
+      {loading ? (
+        <p style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>กำลังโหลด...</p>
+      ) : (
+        <div className="space-y-2">
+          {tracks.length === 0 && (
+            <p style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>ยังไม่มีเพลงใน playlist</p>
+          )}
+          {tracks.map((t, i) => (
+            <div key={i} className="rounded-2xl p-4 flex items-center justify-between gap-3" style={card}>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-xl shrink-0">{t.type === "youtube" ? "▶️" : "🎧"}</span>
+                <div className="min-w-0">
+                  <p className="text-sm truncate" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>
+                    {t.title}
+                  </p>
+                  <p className="text-xs truncate" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
+                    {t.artist ?? ""} {t.artist ? "· " : ""}{t.type === "youtube" ? "YouTube" : "ไฟล์เพลง"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => deleteTrack(i, t.title)}
+                className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80 shrink-0"
+                style={{ backgroundColor: "#f5e0d8", color: "#b3553a", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+              >
+                ลบ
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* สลับโหมดเพิ่มเพลง */}
+      <div className="flex gap-2 pt-2">
+        {([["youtube", "🔗 จากลิงก์ YouTube"], ["file", "📁 อัพไฟล์เพลง"]] as ["youtube" | "file", string][]).map(([m, label]) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
+            style={{
+              fontFamily: "var(--font-inter, Inter, sans-serif)",
+              backgroundColor: mode === m ? "var(--ink)" : "var(--accent-light)",
+              color: mode === m ? "#fff" : "var(--accent)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "youtube" ? (
+        <form onSubmit={addYouTube} className="rounded-2xl p-6 space-y-3" style={card}>
+          <label className="block text-sm" style={labelStyle}>
+            ลิงก์ YouTube
+            <input value={ytUrl} onChange={(e) => setYtUrl(e.target.value)} placeholder="https://youtu.be/..." className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} />
+          </label>
+          <label className="block text-sm" style={labelStyle}>
+            ชื่อเพลง
+            <input value={ytTitle} onChange={(e) => setYtTitle(e.target.value)} className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} />
+          </label>
+          <label className="block text-sm" style={labelStyle}>
+            ศิลปิน (ไม่บังคับ)
+            <input value={ytArtist} onChange={(e) => setYtArtist(e.target.value)} className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} />
+          </label>
+          <button type="submit" disabled={busy || !ytUrl.trim() || !ytTitle.trim()} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+            {busy ? "กำลังเพิ่ม..." : "เพิ่มเพลงจาก YouTube"}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={addFile} className="rounded-2xl p-6 space-y-3" style={card}>
+          <input
+            id="music-file-input"
+            type="file"
+            accept=".mp3,.mp4,.m4a,.aac,.wav,.ogg,audio/*"
+            onChange={(e) => { setMusicFile(e.target.files?.[0] ?? null); setStatus(null); }}
+            className="hidden"
+          />
+          <label
+            htmlFor="music-file-input"
+            className="block rounded-2xl py-8 text-center cursor-pointer transition-opacity hover:opacity-80"
+            style={{ border: "2px dashed var(--accent)", backgroundColor: "var(--accent-light)" }}
+          >
+            <span className="block text-3xl mb-2">🎵</span>
+            <span className="block text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)", fontWeight: 500 }}>
+              {musicFile ? musicFile.name : "แตะที่นี่เพื่อเลือกไฟล์เพลง"}
+            </span>
+            <span className="block text-xs mt-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
+              mp3, mp4, m4a (ไม่เกิน 4MB)
+            </span>
+          </label>
+          <label className="block text-sm" style={labelStyle}>
+            ชื่อเพลง
+            <input value={fileTitle} onChange={(e) => setFileTitle(e.target.value)} placeholder="เว้นว่างเพื่อใช้ชื่อไฟล์" className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} />
+          </label>
+          <label className="block text-sm" style={labelStyle}>
+            ศิลปิน (ไม่บังคับ)
+            <input value={fileArtist} onChange={(e) => setFileArtist(e.target.value)} className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} />
+          </label>
+          <button type="submit" disabled={busy || !musicFile} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+            {busy ? "กำลังอัพโหลด..." : "อัพไฟล์เพลง"}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
