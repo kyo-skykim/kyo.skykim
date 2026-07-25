@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import MusicManagerStudio from "@/components/admin/MusicManagerStudio";
-import type { CvAboutData, CvPreview } from "@/lib/admin/cv-types";
+import type { CvAboutData, CvHistoryItem, CvPreview } from "@/lib/admin/cv-types";
 
 type Tab = "dashboard" | "new-post" | "posts" | "gallery" | "music" | "cv" | "about";
 type AboutSection = "profile" | "experience" | "research" | "education" | "skills" | "certifications" | "languages";
@@ -1493,11 +1493,180 @@ export function LegacyMusicManager() {
   );
 }
 
+type CvSectionSelection = Record<AboutSection, boolean>;
+
+const cvSectionLabels: Record<AboutSection, string> = {
+  profile: "ข้อมูลส่วนตัว",
+  experience: "ประสบการณ์",
+  research: "ผลงานและวิจัย",
+  education: "การศึกษา",
+  skills: "ทักษะ",
+  certifications: "ใบรับรอง",
+  languages: "ภาษา",
+};
+
+function allCvSectionsSelected(): CvSectionSelection {
+  return {
+    profile: true,
+    experience: true,
+    research: true,
+    education: true,
+    skills: true,
+    certifications: true,
+    languages: true,
+  };
+}
+
+function mergeSelectedCvSections(
+  before: CvAboutData,
+  after: CvAboutData,
+  selected: CvSectionSelection
+): CvAboutData {
+  return {
+    profile: selected.profile
+      ? after.profile
+      : { ...before.profile, cv: after.profile.cv },
+    experience: selected.experience ? after.experience : before.experience,
+    research: selected.research ? after.research : before.research,
+    education: selected.education ? after.education : before.education,
+    skills: selected.skills ? after.skills : before.skills,
+    certifications: selected.certifications ? after.certifications : before.certifications,
+    languages: selected.languages ? after.languages : before.languages,
+  };
+}
+
+function cvSectionLines(data: CvAboutData, section: AboutSection): string[] {
+  if (section === "profile") {
+    const privacy = data.profile.privacy ?? {
+      showLocation: true,
+      showPhone: true,
+      showEmail: true,
+    };
+    return [
+      `ชื่อ: ${data.profile.name}`,
+      `ชื่อเล่น: ${data.profile.nickname}`,
+      `ที่อยู่: ${data.profile.location}`,
+      `โทรศัพท์: ${data.profile.phone}`,
+      `อีเมล: ${data.profile.email}`,
+      `LinkedIn: ${data.profile.linkedin}`,
+      `GitHub: ${data.profile.github ?? ""}`,
+      `เว็บไซต์: ${data.profile.website ?? ""}`,
+      `แสดงสาธารณะ: ${[
+        privacy.showLocation ? "ที่อยู่" : "",
+        privacy.showPhone ? "โทรศัพท์" : "",
+        privacy.showEmail ? "อีเมล" : "",
+      ].filter(Boolean).join(", ") || "ไม่แสดงข้อมูลติดต่อ"}`,
+      `Summary: ${data.profile.summary}`,
+    ];
+  }
+  if (section === "experience") {
+    return data.experience.map((item) => `${item.year} · ${item.role} @ ${item.company}`);
+  }
+  if (section === "research") {
+    return data.research.map((item) => `${item.year} · ${item.title} (${item.type})`);
+  }
+  if (section === "education") {
+    return data.education.map((item) => `${item.year} · ${item.degree} @ ${item.school}`);
+  }
+  if (section === "skills") {
+    return data.skills.map((item) => `${item.category}: ${item.items.join(", ")}`);
+  }
+  if (section === "certifications") return data.certifications;
+  return data.languages.map((item) => `${item.lang}: ${item.level}`);
+}
+
+function CvChangesPreview({
+  before,
+  after,
+  selected,
+  onSelectionChange,
+}: {
+  before: CvAboutData;
+  after: CvAboutData;
+  selected: CvSectionSelection;
+  onSelectionChange: (selected: CvSectionSelection) => void;
+}) {
+  const sections = Object.keys(cvSectionLabels) as AboutSection[];
+
+  return (
+    <div className="rounded-2xl p-4 sm:p-5 space-y-3" style={card}>
+      <div>
+        <p className="text-base" style={{ color: "var(--ink)", fontWeight: 600 }}>เลือกส่วนที่จะอัปเดต</p>
+        <p className="text-xs mt-1" style={{ color: "var(--ink-light)" }}>
+          เอาเครื่องหมายออกเพื่อเก็บข้อมูลบนเว็บไซต์ส่วนเดิมไว้
+        </p>
+        <p className="text-xs mt-1" style={{ color: "var(--ink-light)" }}>
+          แถบแดงคือข้อมูลเดิมที่จะหายไป · แถบเขียวคือข้อมูลใหม่จาก CV
+        </p>
+      </div>
+      {sections.map((section) => {
+        const oldLines = cvSectionLines(before, section);
+        const newLines = cvSectionLines(after, section);
+        const changed = JSON.stringify(before[section]) !== JSON.stringify(after[section]);
+        return (
+          <details key={section} className="rounded-xl p-3" style={{ backgroundColor: "var(--cream)", border: "1px solid var(--border)" }}>
+            <summary className="cursor-pointer list-none">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected[section]}
+                  onChange={(event) => onSelectionChange({ ...selected, [section]: event.target.checked })}
+                  onClick={(event) => event.stopPropagation()}
+                />
+                <span className="text-sm flex-1" style={{ color: "var(--ink)", fontWeight: 500 }}>
+                  {cvSectionLabels[section]}
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{
+                  backgroundColor: changed ? "#fff5dc" : "var(--accent-light)",
+                  color: changed ? "#765b20" : "var(--accent)",
+                }}>
+                  {changed ? "มีการเปลี่ยนแปลง" : "เหมือนเดิม"}
+                </span>
+              </label>
+            </summary>
+            <div className="grid sm:grid-cols-2 gap-3 mt-3">
+              {([
+                ["ก่อน", oldLines, new Set(newLines), "#fff0ed"],
+                ["หลังอ่าน CV", newLines, new Set(oldLines), "#eef8ed"],
+              ] as Array<[string, string[], Set<string>, string]>).map(([label, lines, comparison, highlight]) => (
+                <div key={label} className="rounded-xl p-3" style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}>
+                  <p className="text-xs mb-2" style={{ color: "var(--accent)", fontWeight: 600 }}>{label}</p>
+                  <ul className="space-y-1">
+                    {lines.slice(0, 8).map((line, index) => (
+                      <li
+                        key={`${index}-${line}`}
+                        className="text-xs break-words rounded px-1.5 py-0.5"
+                        style={{
+                          color: "var(--ink-light)",
+                          backgroundColor: comparison.has(line) ? "transparent" : highlight,
+                        }}
+                      >
+                        {line || "—"}
+                      </li>
+                    ))}
+                    {lines.length > 8 && (
+                      <li className="text-xs" style={{ color: "var(--accent)" }}>
+                        + อีก {lines.length - 8} รายการ
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </details>
+        );
+      })}
+    </div>
+  );
+}
+
 function CvForm() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CvPreview | null>(null);
+  const [selected, setSelected] = useState<CvSectionSelection>(allCvSectionsSelected);
   const [busy, setBusy] = useState<"preview" | "publish" | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0);
   useUnsavedWarning(Boolean(file || preview));
 
   async function analyze() {
@@ -1512,9 +1681,12 @@ function CvForm() {
     setBusy(null);
     if (res.ok) {
       setPreview(data as CvPreview);
+      setSelected(allCvSectionsSelected());
       setStatus({
         ok: true,
-        text: `อ่านข้อความสำเร็จ ${data.totalPages} หน้า ตรวจและแก้ข้อมูลด้านล่างก่อนบันทึก`,
+        text: data.usedOcr
+          ? `อ่านข้อความด้วย OCR สำเร็จ ${data.totalPages} หน้า กรุณาตรวจทุกส่วนก่อนบันทึก`
+          : `อ่านข้อความสำเร็จ ${data.totalPages} หน้า ตรวจและแก้ข้อมูลด้านล่างก่อนบันทึก`,
       });
     } else {
       setStatus({ ok: false, text: data.error ?? "เกิดข้อผิดพลาด" });
@@ -1528,7 +1700,10 @@ function CvForm() {
     const form = new FormData();
     form.append("file", file);
     form.append("mode", "publish");
-    form.append("about", JSON.stringify(preview.about));
+    form.append(
+      "about",
+      JSON.stringify(mergeSelectedCvSections(preview.before, preview.about, selected))
+    );
     const res = await fetch("/api/admin/cv", { method: "POST", body: form });
     const data = await res.json().catch(() => ({}));
     setBusy(null);
@@ -1539,6 +1714,7 @@ function CvForm() {
       });
       setFile(null);
       setPreview(null);
+      setHistoryVersion((version) => version + 1);
     } else {
       setStatus({ ok: false, text: data.error ?? "เกิดข้อผิดพลาด" });
     }
@@ -1564,6 +1740,7 @@ function CvForm() {
           onChange={(event) => {
             setFile(event.target.files?.[0] ?? null);
             setPreview(null);
+            setSelected(allCvSectionsSelected());
             setStatus(null);
           }}
           className="hidden"
@@ -1573,7 +1750,9 @@ function CvForm() {
           <span className="block text-sm" style={{ color: "var(--accent)", fontWeight: 500 }}>
             {file ? file.name : "เลือกไฟล์ CV ใหม่"}
           </span>
-          <span className="block text-xs mt-1" style={{ color: "var(--ink-light)" }}>PDF ที่เลือกข้อความได้ · ไม่เกิน 4MB · ไม่เกิน 12 หน้า</span>
+          <span className="block text-xs mt-1" style={{ color: "var(--ink-light)" }}>
+            PDF ปกติไม่เกิน 12 หน้า · ไฟล์สแกน OCR ไม่เกิน 4 หน้า · สูงสุด 4MB
+          </span>
         </label>
         <StatusMessage status={status} />
         <button
@@ -1589,6 +1768,17 @@ function CvForm() {
 
       {preview && (
         <div className="space-y-4">
+          {preview.usedOcr && (
+            <div className="rounded-2xl p-4 flex items-start gap-3" style={{ backgroundColor: "var(--accent-light)", border: "1px solid var(--accent)" }}>
+              <span className="text-xl">🔎</span>
+              <div>
+                <p className="text-sm" style={{ color: "var(--accent)", fontWeight: 600 }}>อ่านข้อความด้วย OCR</p>
+                <p className="text-xs mt-1" style={{ color: "var(--ink-light)" }}>
+                  รองรับภาษาไทยและอังกฤษ แต่ควรตรวจชื่อเฉพาะ ตัวเลข และช่วงปีเป็นพิเศษ
+                </p>
+              </div>
+            </div>
+          )}
           {preview.warnings.length > 0 && (
             <div className="rounded-2xl p-4" style={{ backgroundColor: "#fff5dc", border: "1px solid #e6cf98" }}>
               <p className="text-sm mb-2" style={{ color: "#765b20", fontWeight: 600 }}>จุดที่ควรตรวจเอง</p>
@@ -1600,8 +1790,16 @@ function CvForm() {
             </div>
           )}
 
+          <CvChangesPreview
+            before={preview.before}
+            after={preview.about}
+            selected={selected}
+            onSelectionChange={setSelected}
+          />
+
           <CvReviewEditor
             value={preview.about}
+            selected={selected}
             onChange={(about) => setPreview((current) => current ? { ...current, about } : current)}
           />
 
@@ -1621,11 +1819,102 @@ function CvForm() {
             className="w-full py-3 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40"
             style={{ backgroundColor: "var(--ink)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)", fontWeight: 600 }}
           >
-            {busy === "publish" ? "กำลังบันทึก CV และ About..." : "ยืนยัน อัปเดต CV และหน้า About"}
+            {busy === "publish"
+              ? "กำลังบันทึก CV และ About..."
+              : `ยืนยัน อัปเดต CV และ ${Object.values(selected).filter(Boolean).length} ส่วน`}
           </button>
         </div>
       )}
+
+      <CvVersionHistory
+        key={historyVersion}
+        onRestored={(text) => {
+          setStatus({ ok: true, text });
+          setHistoryVersion((version) => version + 1);
+        }}
+      />
     </div>
+  );
+}
+
+function CvVersionHistory({ onRestored }: { onRestored: (message: string) => void }) {
+  const [history, setHistory] = useState<CvHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busySha, setBusySha] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/cv/history")
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error ?? "โหลดประวัติไม่สำเร็จ");
+        setHistory(Array.isArray(data.history) ? data.history : []);
+      })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "โหลดประวัติไม่สำเร็จ"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function restore(item: CvHistoryItem) {
+    if (!confirm(`ย้อน CV และหน้า About กลับไปเวอร์ชัน "${item.message}" หรือไม่?`)) return;
+    setBusySha(item.sha);
+    setError("");
+    const response = await fetch("/api/admin/cv/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sha: item.sha }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusySha("");
+    if (!response.ok) {
+      setError(data.error ?? "ย้อนกลับไม่สำเร็จ");
+      return;
+    }
+    onRestored("ย้อน CV และหน้า About แล้ว เว็บจะอัปเดตหลัง Deployment เสร็จ");
+  }
+
+  return (
+    <details className="rounded-2xl p-4 sm:p-5" style={card}>
+      <summary className="text-sm cursor-pointer" style={{ color: "var(--accent)", fontWeight: 600 }}>
+        ประวัติเวอร์ชันและย้อนกลับ
+      </summary>
+      <div className="mt-4 space-y-2">
+        {loading && <p className="text-xs" style={{ color: "var(--ink-light)" }}>กำลังโหลดประวัติ...</p>}
+        {error && <p className="text-xs" style={{ color: "#b3553a" }}>{error}</p>}
+        {!loading && !error && history.length === 0 && (
+          <p className="text-xs" style={{ color: "var(--ink-light)" }}>ยังไม่มีประวัติเวอร์ชัน</p>
+        )}
+        {history.map((item, index) => (
+          <div key={item.sha} className="rounded-xl p-3 flex items-center justify-between gap-3" style={{ backgroundColor: "var(--cream)", border: "1px solid var(--border)" }}>
+            <div className="min-w-0">
+              <p className="text-sm truncate" style={{ color: "var(--ink)" }}>
+                {index === 0 ? "ปัจจุบัน · " : ""}{item.message}
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-light)" }}>
+                {item.date ? new Date(item.date).toLocaleString("th-TH") : item.sha.slice(0, 7)}
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              {item.url && (
+                <a href={item.url} target="_blank" rel="noreferrer" className="text-xs px-3 py-1.5 rounded-full" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}>
+                  ดู
+                </a>
+              )}
+              {index > 0 && (
+                <button
+                  type="button"
+                  onClick={() => restore(item)}
+                  disabled={Boolean(busySha)}
+                  className="text-xs px-3 py-1.5 rounded-full disabled:opacity-40"
+                  style={{ backgroundColor: "var(--ink)", color: "#fff" }}
+                >
+                  {busySha === item.sha ? "กำลังย้อน..." : "ย้อนกลับ"}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -1682,9 +1971,11 @@ function CvDraftList<T>({
 
 function CvReviewEditor({
   value,
+  selected,
   onChange,
 }: {
   value: AboutData;
+  selected: CvSectionSelection;
   onChange: (value: AboutData) => void;
 }) {
   const [section, setSection] = useState<AboutSection>("profile");
@@ -1702,8 +1993,9 @@ function CvReviewEditor({
     onChange({ ...value, profile: { ...value.profile, ...patch } });
   }
 
+  type CvProfileTextKey = Exclude<keyof AboutData["profile"], "privacy">;
   const profileFields: Array<[
-    keyof AboutData["profile"],
+    CvProfileTextKey,
     string,
     string?
   ]> = [
@@ -1738,10 +2030,16 @@ function CvReviewEditor({
               color: section === key ? "#fff" : "var(--accent)",
             }}
           >
-            {label}{count === null ? "" : ` (${count})`}
+            {selected[key] ? "✓ " : "– "}{label}{count === null ? "" : ` (${count})`}
           </button>
         ))}
       </div>
+
+      {!selected[section] && (
+        <p className="text-xs rounded-xl px-3 py-2" style={{ backgroundColor: "#fff5dc", color: "#765b20" }}>
+          ส่วนนี้ไม่ได้ถูกเลือก ข้อมูลที่แก้ในส่วนนี้จะไม่ถูกบันทึกจนกว่าจะเลือกด้านบน
+        </p>
+      )}
 
       {section === "profile" && (
         <div className="space-y-3">
@@ -1757,6 +2055,32 @@ function CvReviewEditor({
               />
             </label>
           ))}
+          <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: "var(--cream)", border: "1px solid var(--border)" }}>
+            <p className="text-xs" style={{ color: "var(--ink)", fontWeight: 600 }}>ข้อมูลที่แสดงบนหน้าสาธารณะ</p>
+            {([
+              ["showLocation", "แสดงที่อยู่"],
+              ["showPhone", "แสดงเบอร์โทร"],
+              ["showEmail", "แสดงอีเมล"],
+            ] as Array<[keyof NonNullable<AboutData["profile"]["privacy"]>, string]>).map(([key, label]) => {
+              const privacy = value.profile.privacy ?? {
+                showLocation: true,
+                showPhone: true,
+                showEmail: true,
+              };
+              return (
+                <label key={key} className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--ink-light)" }}>
+                  <input
+                    type="checkbox"
+                    checked={privacy[key]}
+                    onChange={(event) => setProfile({
+                      privacy: { ...privacy, [key]: event.target.checked },
+                    })}
+                  />
+                  {label}
+                </label>
+              );
+            })}
+          </div>
           <label className="block text-xs" style={labelStyle}>
             Summary
             <textarea
@@ -1950,7 +2274,8 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
     }
   }
 
-  const fields: Array<[keyof typeof profile, string, string?]> = [
+  type ProfileTextKey = Exclude<keyof typeof profile, "privacy">;
+  const fields: Array<[ProfileTextKey, string, string?]> = [
     ["name", "ชื่อ"],
     ["nickname", "ชื่อเล่น"],
     ["location", "ที่อยู่"],
@@ -1969,13 +2294,40 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
           {label}
           <input
             type={type ?? "text"}
-            value={profile[key] ?? ""}
+            value={String(profile[key] ?? "")}
             onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}
             className="mt-1 w-full rounded-xl px-3 py-2 outline-none"
             style={inputStyle}
           />
         </label>
       ))}
+      <div className="rounded-xl p-4 space-y-2" style={{ backgroundColor: "var(--cream)", border: "1px solid var(--border)" }}>
+        <p className="text-sm" style={{ color: "var(--ink)", fontWeight: 600 }}>ความเป็นส่วนตัวบนหน้า About</p>
+        {([
+          ["showLocation", "แสดงที่อยู่"],
+          ["showPhone", "แสดงเบอร์โทร"],
+          ["showEmail", "แสดงอีเมล"],
+        ] as Array<[keyof NonNullable<AboutData["profile"]["privacy"]>, string]>).map(([key, label]) => {
+          const privacy = profile.privacy ?? {
+            showLocation: true,
+            showPhone: true,
+            showEmail: true,
+          };
+          return (
+            <label key={key} className="flex items-center gap-2 text-sm cursor-pointer" style={labelStyle}>
+              <input
+                type="checkbox"
+                checked={privacy[key]}
+                onChange={(event) => setProfile({
+                  ...profile,
+                  privacy: { ...privacy, [key]: event.target.checked },
+                })}
+              />
+              {label}
+            </label>
+          );
+        })}
+      </div>
       <label className="block text-sm" style={labelStyle}>
         Summary
         <textarea

@@ -14,6 +14,11 @@ export interface Profile {
   linkedin: string;
   github?: string;
   website?: string;
+  privacy?: {
+    showLocation: boolean;
+    showPhone: boolean;
+    showEmail: boolean;
+  };
   cv: string;
   summary: string;
 }

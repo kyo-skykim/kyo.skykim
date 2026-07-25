@@ -25,6 +25,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function AboutPage() {
+  const privacy = profile.privacy ?? {
+    showLocation: true,
+    showPhone: true,
+    showEmail: true,
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--cream)" }}>
       <Nav />
@@ -45,12 +51,16 @@ export default function AboutPage() {
             >
               {profile.name}
             </h1>
-            <p className="text-sm mb-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
-              {profile.location}
-            </p>
+            {privacy.showLocation && (
+              <p className="text-sm mb-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
+                {profile.location}
+              </p>
+            )}
             <div className="flex flex-wrap gap-3 text-xs" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
-              <span>{profile.phone}</span>
-              <a href={`mailto:${profile.email}`} className="hover:opacity-70">{profile.email}</a>
+              {privacy.showPhone && <span>{profile.phone}</span>}
+              {privacy.showEmail && (
+                <a href={`mailto:${profile.email}`} className="hover:opacity-70">{profile.email}</a>
+              )}
               <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">LinkedIn</a>
               {profile.github && (
                 <a href={profile.github} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">GitHub</a>

@@ -1,16 +1,18 @@
-import { extractText, getDocumentProxy } from "unpdf";
+import { extractText, getDocumentProxy, renderPageAsImage } from "unpdf";
+import { mkdir } from "node:fs/promises";
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, readFile } from "@/lib/admin/github";
 import { parseCvText } from "@/lib/admin/cv-parser";
 import type { CvAboutData, CvPreview } from "@/lib/admin/cv-types";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const CV_PATH = "public/CV_Conlathit_Phuncam.pdf";
 const ABOUT_PATH = "content/about.json";
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const MAX_PAGES = 12;
+const MAX_OCR_PAGES = 4;
 const EXTRACTION_TIMEOUT_MS = 12_000;
 
 function validAboutData(value: unknown): value is CvAboutData {
@@ -40,8 +42,9 @@ function validateFile(file: FormDataEntryValue | null): file is File {
 async function extractCvText(buffer: Uint8Array): Promise<{
   totalPages: number;
   text: string;
+  usedOcr: boolean;
 }> {
-  const pdf = await getDocumentProxy(buffer, { maxImageSize: 16_777_216 });
+  const pdf = await getDocumentProxy(new Uint8Array(buffer), { maxImageSize: 16_777_216 });
   if (pdf.numPages > MAX_PAGES) {
     throw new Error(`CV มี ${pdf.numPages} หน้า ซึ่งเกินจำนวนสูงสุด ${MAX_PAGES} หน้า`);
   }
@@ -60,12 +63,44 @@ async function extractCvText(buffer: Uint8Array): Promise<{
     if (timer) clearTimeout(timer);
   });
   const text = Array.isArray(result.text) ? result.text.join("\n") : result.text;
-  if (text.replace(/\s/g, "").length < 80) {
+  if (text.replace(/\s/g, "").length >= 80) {
+    return { totalPages: result.totalPages, text, usedOcr: false };
+  }
+
+  if (pdf.numPages > MAX_OCR_PAGES) {
     throw new Error(
-      "อ่านข้อความจาก PDF ไม่ได้ ไฟล์อาจเป็นภาพสแกน กรุณาใช้ PDF ที่เลือกข้อความได้"
+      `PDF เป็นภาพสแกนและมี ${pdf.numPages} หน้า ระบบ OCR รองรับสูงสุด ${MAX_OCR_PAGES} หน้า`
     );
   }
-  return { totalPages: result.totalPages, text };
+
+  const { createWorker } = await import("tesseract.js");
+  await mkdir("/tmp/kyo-tesseract-cache", { recursive: true });
+  const worker = await createWorker(["eng", "tha"], undefined, {
+    cachePath: "/tmp/kyo-tesseract-cache",
+  });
+  const pages: string[] = [];
+  try {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const image = await renderPageAsImage(
+        new Uint8Array(buffer),
+        pageNumber,
+        {
+          canvasImport: () => import("@napi-rs/canvas"),
+          scale: 2,
+        }
+      );
+      const recognized = await worker.recognize(Buffer.from(image));
+      pages.push(recognized.data.text);
+    }
+  } finally {
+    await worker.terminate();
+  }
+
+  const ocrText = pages.join("\n");
+  if (ocrText.replace(/\s/g, "").length < 80) {
+    throw new Error("OCR อ่านข้อความจาก PDF ไม่เพียงพอ กรุณาใช้ไฟล์ที่คมชัดขึ้น");
+  }
+  return { totalPages: pdf.numPages, text: ocrText, usedOcr: true };
 }
 
 export async function POST(request: Request) {
@@ -103,12 +138,19 @@ export async function POST(request: Request) {
         return Response.json({ error: "โครงสร้าง about.json ไม่ถูกต้อง" }, { status: 502 });
       }
 
-      const extracted = await extractCvText(bytes);
+      const extracted = await extractCvText(new Uint8Array(bytes));
       const parsed = parseCvText(extracted.text, current);
       parsed.about.profile.cv = CV_PATH.replace("public/", "");
+      if (extracted.usedOcr) {
+        parsed.warnings.unshift(
+          "ไฟล์นี้อ่านด้วย OCR กรุณาตรวจชื่อ ตัวเลข และหัวข้อทุกส่วนก่อนบันทึก"
+        );
+      }
       const preview: CvPreview = {
         ...parsed,
+        before: current,
         totalPages: extracted.totalPages,
+        usedOcr: extracted.usedOcr,
       };
       return Response.json(preview);
     } catch (error) {

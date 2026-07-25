@@ -15,8 +15,8 @@ type DatedBlock = {
   items: string[];
 };
 
-const YEAR_LINE = /^((?:19|20)\d{2}(?:\s*[–—-]\s*(?:(?:19|20)\d{2}|Present|Current|Now))?)\s+(.+)$/i;
-const BULLET_LINE = /^[•●▪◦*-]\s*(.*)$/;
+const YEAR_LINE = /^((?:19|20|25)\d{2}(?:\s*[–—-]\s*(?:(?:19|20|25)\d{2}|Present|Current|Now|ปัจจุบัน))?)\s+(.+)$/i;
+const BULLET_LINE = /^[•●▪◦*+\-«]\s*(.*)$/;
 
 function cleanLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -41,13 +41,13 @@ function headingKey(line: string): SectionKey | null {
     .replace(/\s+/g, " ")
     .trim();
 
-  if (/^(PROFILE|ABOUT|PROFESSIONAL SUMMARY|SUMMARY)$/.test(heading)) return "profile";
-  if (/^EDUCATION(?:AL BACKGROUND)?$/.test(heading)) return "education";
-  if (/^(RESEARCH(?: PROJECTS?)?|PROJECTS?|PORTFOLIO)$/.test(heading)) return "research";
-  if (/^(WORK )?EXPERIENCES?(?: & ACTIVITIES)?$/.test(heading)) return "experience";
-  if (/^(TECHNICAL )?SKILLS$/.test(heading)) return "skills";
-  if (/^LANGUAGES?$/.test(heading)) return "languages";
-  if (/^CERTIFICATIONS?(?: & AWARDS)?$/.test(heading)) return "certifications";
+  if (/^(PROFILE|ABOUT|PROFESSIONAL SUMMARY|SUMMARY|ประวัติส่วนตัว|สรุป)$/.test(heading)) return "profile";
+  if (/^(EDUCATION(?:AL BACKGROUND)?|การศึกษา)$/.test(heading)) return "education";
+  if (/^(RESEARCH(?: PROJECTS?)?|PROJECTS?|PORTFOLIO|งานวิจัย|ผลงาน|โครงการ)$/.test(heading)) return "research";
+  if (/^((WORK )?EXPERIENCES?(?: & ACTIVITIES)?|ประสบการณ์|ประสบการณ์ทำงาน)$/.test(heading)) return "experience";
+  if (/^((TECHNICAL )?SKILLS|ทักษะ|ความสามารถ)$/.test(heading)) return "skills";
+  if (/^(LANGUAGES?|ภาษา)$/.test(heading)) return "languages";
+  if (/^(CERTIFICATIONS?(?: & AWARDS)?|ใบรับรอง|ประกาศนียบัตร)$/.test(heading)) return "certifications";
   return null;
 }
 
@@ -173,6 +173,7 @@ function contactFromHeader(
   const nickname = plain[1] && !plain[1].includes(",") ? plain[1] : current.nickname;
   const location =
     plain.find((line, index) => index > 0 && /,\s*[A-Za-z ]+$/.test(line)) ||
+    plain[2] ||
     current.location;
 
   return {
@@ -203,7 +204,7 @@ function parseSkills(lines: string[]): CvAboutData["skills"] {
 
 function parseLanguages(lines: string[]): CvAboutData["languages"] {
   const levelPattern =
-    /(Native|Fluent|Advanced|Upper Intermediate|Intermediate|Pre-Intermediate|Elementary|Beginner|Beginning|Basic|Professional Working Proficiency|Limited Working Proficiency)$/i;
+    /(Native|Fluent|Advanced|Upper Intermediate|Intermediate|Pre-Intermediate|Elementary|Beginner|Beginning|Basic|Professional Working Proficiency|Limited Working Proficiency|เจ้าของภาษา|ดีมาก|ดี|ปานกลาง|พื้นฐาน)$/i;
 
   return lines
     .map((line) => {
@@ -301,7 +302,7 @@ function parseExperience(
 
 function researchType(lines: string[]): { title: string; type: string } {
   const typePattern =
-    /\b(Independent Study|Undergraduate Research Project|Research Project|Capstone Project|Personal Project|Thesis)\b/i;
+    /\b(Independent Study|Undergraduate Research Project|Research Project|Capstone Project|Personal Project|Thesis)\b|งานวิจัยระดับปริญญาตรี|โครงงานอิสระ|วิทยานิพนธ์/i;
   const joined = lines.join(" ");
   const match = typePattern.exec(joined);
   if (!match) return { title: cleanLine(joined), type: "" };

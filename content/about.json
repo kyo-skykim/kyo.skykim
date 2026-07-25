@@ -8,6 +8,11 @@
     "linkedin": "https://www.linkedin.com/in/chonlathitp",
     "github": "https://github.com/kyo-skykim",
     "website": "https://kyo-skykim.vercel.app/about",
+    "privacy": {
+      "showLocation": true,
+      "showPhone": true,
+      "showEmail": true
+    },
     "cv": "CV_Conlathit_Phuncam.pdf",
     "summary": "Concepts: Data Engineer, Data Visualization, Data Modeling, Financial Mathematics. Bachelor of Science in Mathematics with coursework in Mathematical Analysis, Applied Mathematics and Elementary Statistics. Currently attending a Data Engineering through intensive bootcamp training. Adept at logical problem-solving and applying mathematical principles to analyze complex datasets and support data-driven decision-making."
   },

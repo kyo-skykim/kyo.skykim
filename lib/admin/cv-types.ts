@@ -8,6 +8,11 @@ export interface CvAboutData {
     linkedin: string;
     github?: string;
     website?: string;
+    privacy?: {
+      showLocation: boolean;
+      showPhone: boolean;
+      showEmail: boolean;
+    };
     cv: string;
     summary: string;
   };
@@ -42,8 +47,17 @@ export interface CvAboutData {
 }
 
 export interface CvPreview {
+  before: CvAboutData;
   about: CvAboutData;
   rawText: string;
   totalPages: number;
   warnings: string[];
+  usedOcr: boolean;
+}
+
+export interface CvHistoryItem {
+  sha: string;
+  message: string;
+  date: string;
+  url: string;
 }

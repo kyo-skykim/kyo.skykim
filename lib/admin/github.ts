@@ -96,6 +96,61 @@ export async function readFile(path: string): Promise<string | null> {
   return res.text();
 }
 
+export async function readFileAtRef(path: string, ref: string): Promise<string | null> {
+  const res = await fetch(
+    `${API}/repos/${repo()}/contents/${encodeURI(path)}?ref=${encodeURIComponent(ref)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github.raw+json",
+      },
+      cache: "no-store",
+    }
+  );
+  if (!res.ok) return null;
+  return res.text();
+}
+
+export async function readFileBase64AtRef(path: string, ref: string): Promise<string | null> {
+  const data = await gh(
+    `/repos/${repo()}/contents/${encodeURI(path)}?ref=${encodeURIComponent(ref)}`
+  );
+  if (!data || data.type !== "file" || typeof data.content !== "string") return null;
+  return data.content.replace(/\s/g, "");
+}
+
+export interface FileHistoryItem {
+  sha: string;
+  message: string;
+  date: string;
+  url: string;
+}
+
+export async function getFileHistory(
+  path: string,
+  limit = 10
+): Promise<FileHistoryItem[]> {
+  const safeLimit = Math.min(Math.max(limit, 1), 20);
+  const commits = await gh(
+    `/repos/${repo()}/commits?path=${encodeURIComponent(path)}&sha=${encodeURIComponent(branch())}&per_page=${safeLimit}`
+  );
+  if (!Array.isArray(commits)) return [];
+  return commits.map((item: {
+    sha?: string;
+    html_url?: string;
+    commit?: {
+      message?: string;
+      committer?: { date?: string };
+      author?: { date?: string };
+    };
+  }) => ({
+    sha: item.sha ?? "",
+    message: item.commit?.message?.split("\n")[0] ?? "CV / About update",
+    date: item.commit?.committer?.date ?? item.commit?.author?.date ?? "",
+    url: item.html_url ?? "",
+  })).filter((item: FileHistoryItem) => Boolean(item.sha));
+}
+
 export async function deleteFile(filePath: string, message: string): Promise<void> {
   const r = repo();
   const b = branch();
