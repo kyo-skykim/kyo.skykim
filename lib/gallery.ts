@@ -9,6 +9,7 @@ export type PhotoMeta = {
   caption?: string;
   date?: string;     // e.g. "2026-05-14" — ถ้าไม่ใส่จะเรียงตามเวลาที่ upload
   location?: string;
+  featured?: boolean;
 };
 
 export type Photo = PhotoMeta & { src: string; file: string };
@@ -40,6 +41,7 @@ export function getAllPhotos(): Photo[] {
 
   return photos
     .sort((a, b) => {
+      if (a.featured !== b.featured) return a.featured ? -1 : 1;
       const aKey = a.date ? Date.parse(a.date) : a.mtime;
       const bKey = b.date ? Date.parse(b.date) : b.mtime;
       return bKey - aKey;

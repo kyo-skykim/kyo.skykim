@@ -145,3 +145,65 @@ export async function listFiles(dir: string): Promise<string[]> {
     .filter((item: { type: string; name: string }) => item.type === "file")
     .map((item: { name: string }) => item.name);
 }
+
+export interface PublishStatus {
+  repository: string;
+  branch: string;
+  commitSha: string;
+  commitMessage: string;
+  commitUrl: string;
+  updatedAt: string;
+  state: "success" | "pending" | "failure" | "unknown";
+  checks: Array<{ name: string; status: string; conclusion: string | null; url?: string }>;
+}
+
+export async function getPublishStatus(): Promise<PublishStatus> {
+  const r = repo();
+  const b = branch();
+  const ref = await gh(`/repos/${r}/git/ref/heads/${encodeURIComponent(b)}`);
+  const commitSha: string = ref.object.sha;
+  const [commit, combined, checkRuns] = await Promise.all([
+    gh(`/repos/${r}/commits/${commitSha}`),
+    gh(`/repos/${r}/commits/${commitSha}/status`),
+    gh(`/repos/${r}/commits/${commitSha}/check-runs`),
+  ]);
+
+  const checks = Array.isArray(checkRuns.check_runs)
+    ? checkRuns.check_runs.map((check: {
+        name?: string;
+        status?: string;
+        conclusion?: string | null;
+        html_url?: string;
+      }) => ({
+        name: check.name ?? "Deployment",
+        status: check.status ?? "queued",
+        conclusion: check.conclusion ?? null,
+        ...(check.html_url ? { url: check.html_url } : {}),
+      }))
+    : [];
+
+  const failed = checks.some((check: { conclusion: string | null }) =>
+    ["failure", "cancelled", "timed_out", "action_required"].includes(check.conclusion ?? "")
+  );
+  const pending = checks.some((check: { status: string }) => check.status !== "completed");
+  const successful = checks.length > 0 && checks.every(
+    (check: { conclusion: string | null }) =>
+      ["success", "neutral", "skipped"].includes(check.conclusion ?? "")
+  );
+
+  let state: PublishStatus["state"] = "unknown";
+  if (failed || combined.state === "failure" || combined.state === "error") state = "failure";
+  else if (pending || combined.state === "pending") state = "pending";
+  else if (successful || combined.state === "success") state = "success";
+
+  return {
+    repository: r,
+    branch: b,
+    commitSha,
+    commitMessage: commit.commit?.message?.split("\n")[0] ?? "Content update",
+    commitUrl: commit.html_url ?? `https://github.com/${r}/commit/${commitSha}`,
+    updatedAt: commit.commit?.committer?.date ?? "",
+    state,
+    checks,
+  };
+}

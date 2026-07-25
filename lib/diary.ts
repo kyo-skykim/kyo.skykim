@@ -23,7 +23,9 @@ export interface Post extends PostMeta {
 }
 
 function toTimestamp(dateStr: string): number {
-  const ts = Date.parse(dateStr);
+  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(dateStr);
+  const isLocalDateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(dateStr);
+  const ts = Date.parse(isLocalDateTime && !hasTimezone ? `${dateStr}+07:00` : dateStr);
   return isNaN(ts) ? 0 : ts;
 }
 
@@ -57,7 +59,7 @@ export function getAllPosts(): PostMeta[] {
       const raw = fs.readFileSync(path.join(postsDir, filename), "utf-8");
       return parsePostMeta(filename, raw);
     })
-    .filter((p) => !p.draft);
+    .filter((p) => !p.draft && toTimestamp(p.date) <= Date.now());
 
   return posts.sort((a, b) => toTimestamp(b.date) - toTimestamp(a.date));
 }
@@ -81,6 +83,7 @@ export async function getPost(slug: string): Promise<Post | null> {
 
   const raw = fs.readFileSync(filePath, "utf-8");
   const { data, content: mdContent } = matter(raw);
+  if (data.draft === true || toTimestamp(data.date ?? "") > Date.now()) return null;
   const processed = await remark().use(html).process(mdContent);
 
   return {

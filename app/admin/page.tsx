@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
+import MusicManagerStudio from "@/components/admin/MusicManagerStudio";
+import type { CvAboutData, CvPreview } from "@/lib/admin/cv-types";
 
-type Tab = "new-post" | "posts" | "new-photo" | "photos" | "music" | "cv" | "about";
+type Tab = "dashboard" | "new-post" | "posts" | "gallery" | "music" | "cv" | "about";
 type AboutSection = "profile" | "experience" | "research" | "education" | "skills" | "certifications" | "languages";
 
 const card: React.CSSProperties = {
@@ -47,7 +49,7 @@ async function compressImage(file: File): Promise<Blob> {
 export default function AdminPage() {
   const [checking, setChecking] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [tab, setTab] = useState<Tab>("new-post");
+  const [tab, setTab] = useState<Tab>("dashboard");
 
   useEffect(() => {
     fetch("/api/admin/login")
@@ -56,43 +58,54 @@ export default function AdminPage() {
       .finally(() => setChecking(false));
   }, []);
 
-  const tabs: [Tab, string][] = [
-    ["new-post", "📝 โพสต์ใหม่"],
-    ["posts", "✏️ โพสต์ทั้งหมด"],
-    ["new-photo", "📷 รูปใหม่"],
-    ["photos", "🖼️ รูปทั้งหมด"],
-    ["music", "🎵 เพลง"],
-    ["cv", "📄 CV"],
-    ["about", "👤 About"],
+  const tabs: [Tab, string, string][] = [
+    ["dashboard", "⌂", "ภาพรวม"],
+    ["new-post", "＋", "เขียน"],
+    ["posts", "✎", "โพสต์"],
+    ["gallery", "▧", "รูปภาพ"],
+    ["music", "♫", "เพลง"],
+    ["about", "◯", "เกี่ยวกับ"],
+    ["cv", "▤", "CV"],
   ];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--cream)" }}>
-      <nav className="border-b py-4 px-6" style={{ borderColor: "var(--border)", backgroundColor: "var(--warm-white)" }}>
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontWeight: 500, color: "var(--ink)", fontSize: "1.1rem" }}>
-            My Diary
-          </Link>
+      <nav className="border-b py-3 px-4 sm:px-6 sticky top-0 z-40" style={{ borderColor: "var(--border)", backgroundColor: "var(--warm-white)" }}>
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
+              Creator studio
+            </p>
+            <Link href="/" style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontWeight: 500, color: "var(--ink)", fontSize: "1.1rem" }}>
+              My Diary
+            </Link>
+          </div>
           {loggedIn && (
-            <button
-              onClick={async () => {
-                await fetch("/api/admin/login", { method: "DELETE" });
-                setLoggedIn(false);
-              }}
-              className="text-sm transition-opacity hover:opacity-60"
-              style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}
-            >
-              ออกจากระบบ
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/"
+                target="_blank"
+                className="text-xs px-3 py-2 rounded-full transition-opacity hover:opacity-70"
+                style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", backgroundColor: "var(--accent-light)", color: "var(--accent)" }}
+              >
+                เปิดเว็บไซต์ ↗
+              </Link>
+              <button
+                onClick={async () => {
+                  await fetch("/api/admin/login", { method: "DELETE" });
+                  setLoggedIn(false);
+                }}
+                className="text-xs transition-opacity hover:opacity-60"
+                style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
+              >
+                ออกจากระบบ
+              </button>
+            </div>
           )}
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-3xl mb-8" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>
-          Admin ✍️
-        </h1>
-
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         {checking ? (
           <p style={{ color: "var(--ink-light)", fontStyle: "italic", fontFamily: "var(--font-lora, Georgia, serif)" }}>
             กำลังตรวจสอบ...
@@ -101,33 +114,78 @@ export default function AdminPage() {
           <LoginForm onSuccess={() => setLoggedIn(true)} />
         ) : (
           <>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {tabs.map(([t, label]) => (
+            <div
+              className="flex gap-1 mb-8 overflow-x-auto rounded-2xl p-1.5"
+              style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}
+              aria-label="เมนูจัดการเว็บไซต์"
+            >
+              {tabs.map(([t, icon, label]) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className="text-sm px-4 py-2 rounded-full transition-opacity hover:opacity-80"
+                  className="min-w-[72px] flex-1 text-xs sm:text-sm px-3 py-2.5 rounded-xl transition-all hover:opacity-80 whitespace-nowrap"
                   style={{
                     fontFamily: "var(--font-inter, Inter, sans-serif)",
                     backgroundColor: tab === t ? "var(--accent)" : "var(--accent-light)",
                     color: tab === t ? "#fff" : "var(--accent)",
                   }}
                 >
+                  <span className="block text-base leading-none mb-1">{icon}</span>
                   {label}
                 </button>
               ))}
             </div>
-            {tab === "new-post" && <DiaryForm />}
-            {tab === "posts" && <PostsList />}
-            {tab === "new-photo" && <PhotoForm />}
-            {tab === "photos" && <PhotosList />}
-            {tab === "music" && <MusicManager />}
-            {tab === "cv" && <CvForm />}
-            {tab === "about" && <AboutEditor />}
+            {tab === "dashboard" && <Dashboard onNavigate={setTab} />}
+            {tab === "new-post" && (
+              <AdminSection title="เขียนไดอารี่" description="ระบบบันทึกร่างให้อัตโนมัติบนเครื่องนี้">
+                <DiaryForm />
+              </AdminSection>
+            )}
+            {tab === "posts" && (
+              <AdminSection title="โพสต์ทั้งหมด" description="ค้นหา แก้ไข หรือเปิดดูโพสต์ที่เผยแพร่แล้ว">
+                <PostsList />
+              </AdminSection>
+            )}
+            {tab === "gallery" && (
+              <AdminSection title="คลังรูปภาพ" description="เพิ่มหลายรูปพร้อมกันและแก้คำบรรยายได้ในที่เดียว">
+                <GalleryWorkspace />
+              </AdminSection>
+            )}
+            {tab === "music" && (
+              <AdminSection title="Playlist" description="เพิ่ม ทดลองฟัง แก้ไข และจัดลำดับเพลง">
+                <MusicManagerStudio />
+              </AdminSection>
+            )}
+            {tab === "about" && (
+              <AdminSection title="เกี่ยวกับฉัน" description="จัดการข้อมูลแต่ละส่วนด้วยการ์ด">
+                <AboutEditor />
+              </AdminSection>
+            )}
+            {tab === "cv" && (
+              <AdminSection title="เอกสาร CV" description="อ่านข้อความจาก PDF ตรวจแก้ แล้วอัปเดตหน้า About พร้อมกัน">
+                <CvForm />
+              </AdminSection>
+            )}
           </>
         )}
       </main>
     </div>
+  );
+}
+
+function AdminSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <div className="mb-5">
+        <h1 className="text-2xl sm:text-3xl" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>
+          {title}
+        </h1>
+        <p className="text-sm mt-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
+          {description}
+        </p>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -193,6 +251,209 @@ function StatusMessage({ status }: { status: { ok: boolean; text: string } | nul
   );
 }
 
+function useUnsavedWarning(active: boolean) {
+  useEffect(() => {
+    function warn(event: BeforeUnloadEvent) {
+      if (!active) return;
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [active]);
+}
+
+interface DashboardSummary {
+  posts: PostItem[];
+  photoCount: number;
+  trackCount: number;
+  publish: {
+    branch: string;
+    commitSha: string;
+    commitMessage: string;
+    commitUrl: string;
+    updatedAt: string;
+    state: "success" | "pending" | "failure" | "unknown";
+    checks: Array<{ name: string; status: string; conclusion: string | null; url?: string }>;
+  } | null;
+}
+
+function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
+  const [summary, setSummary] = useState<DashboardSummary>({
+    posts: [],
+    photoCount: 0,
+    trackCount: 0,
+    publish: null,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    const [postsRes, photosRes, musicRes, statusRes] = await Promise.all([
+      fetch("/api/admin/posts"),
+      fetch("/api/admin/photo"),
+      fetch("/api/admin/music"),
+      fetch("/api/admin/status"),
+    ]);
+    const [posts, photos, music, publish] = await Promise.all([
+      postsRes.json().catch(() => ({})),
+      photosRes.json().catch(() => ({})),
+      musicRes.json().catch(() => ({})),
+      statusRes.json().catch(() => ({})),
+    ]);
+    setLoading(false);
+    if (![postsRes, photosRes, musicRes].every((response) => response.ok)) {
+      setError(posts.error ?? photos.error ?? music.error ?? "โหลดภาพรวมไม่สำเร็จ");
+    }
+    setSummary({
+      posts: posts.posts ?? [],
+      photoCount: photos.photos?.length ?? 0,
+      trackCount: music.tracks?.length ?? 0,
+      publish: statusRes.ok ? publish : null,
+    });
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const publishedPosts = summary.posts.filter((post) => !post.draft).length;
+  const draftPosts = summary.posts.filter((post) => post.draft).length;
+  const publishLabel = {
+    success: "เผยแพร่สำเร็จ",
+    pending: "กำลังเผยแพร่",
+    failure: "เผยแพร่ไม่สำเร็จ",
+    unknown: "รอตรวจสอบ",
+  }[summary.publish?.state ?? "unknown"];
+  const publishColor = summary.publish?.state === "failure"
+    ? "#b3553a"
+    : summary.publish?.state === "pending"
+      ? "#a06b2c"
+      : "var(--accent)";
+
+  const quickActions: Array<{ tab: Tab; icon: string; title: string; description: string }> = [
+    { tab: "new-post", icon: "✍️", title: "เขียนโพสต์", description: "เริ่มเขียนพร้อม autosave" },
+    { tab: "gallery", icon: "📷", title: "เพิ่มรูป", description: "เลือกได้หลายรูปพร้อมกัน" },
+    { tab: "music", icon: "🎵", title: "เพิ่มเพลง", description: "วางลิงก์แล้วระบบเติมข้อมูลให้" },
+    { tab: "about", icon: "👤", title: "แก้ About", description: "อัปเดตประวัติแบบการ์ด" },
+  ];
+
+  return (
+    <section className="space-y-6">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
+            ยินดีต้อนรับกลับ
+          </p>
+          <h1 className="text-3xl sm:text-4xl" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>
+            วันนี้อยากอัปเดตอะไร?
+          </h1>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="text-xs px-3 py-2 rounded-full transition-opacity hover:opacity-70 disabled:opacity-40"
+          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+        >
+          {loading ? "กำลังโหลด..." : "↻ รีเฟรช"}
+        </button>
+      </div>
+
+      {error && <StatusMessage status={{ ok: false, text: error }} />}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {quickActions.map((action) => (
+          <button
+            key={action.tab}
+            onClick={() => onNavigate(action.tab)}
+            className="rounded-2xl p-4 sm:p-5 text-left transition-all hover:-translate-y-0.5"
+            style={{ ...card, boxShadow: "0 1px 5px rgba(44,36,22,0.05)" }}
+          >
+            <span className="text-2xl">{action.icon}</span>
+            <span className="block mt-3 text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink)", fontWeight: 500 }}>
+              {action.title}
+            </span>
+            <span className="block mt-1 text-xs leading-relaxed" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
+              {action.description}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        {[
+          ["โพสต์แล้ว", publishedPosts, "posts" as Tab],
+          ["ฉบับร่าง", draftPosts, "posts" as Tab],
+          ["รูปภาพ", summary.photoCount, "gallery" as Tab],
+        ].map(([label, count, target]) => (
+          <button
+            key={String(label)}
+            onClick={() => onNavigate(target as Tab)}
+            className="rounded-2xl p-4 text-left"
+            style={card}
+          >
+            <span className="text-2xl" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)" }}>{count}</span>
+            <span className="block text-xs mt-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-4">
+        <div className="rounded-2xl p-5" style={card}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>
+              โพสต์ล่าสุด
+            </h2>
+            <button onClick={() => onNavigate("posts")} className="text-xs" style={{ color: "var(--accent)" }}>
+              ดูทั้งหมด →
+            </button>
+          </div>
+          <div className="space-y-2">
+            {summary.posts.slice(0, 4).map((post) => (
+              <button
+                key={post.slug}
+                onClick={() => onNavigate("posts")}
+                className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left"
+                style={{ backgroundColor: "var(--cream)" }}
+              >
+                <span className="text-xl">{post.coverEmoji}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm truncate" style={{ color: "var(--ink)" }}>{post.title}</span>
+                  <span className="block text-xs" style={{ color: "var(--ink-light)" }}>{post.draft ? "ฉบับร่าง" : "เผยแพร่แล้ว"}</span>
+                </span>
+              </button>
+            ))}
+            {!loading && summary.posts.length === 0 && (
+              <p className="text-sm py-4" style={{ color: "var(--ink-light)" }}>ยังไม่มีโพสต์</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl p-5" style={card}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>
+              สถานะเว็บไซต์
+            </h2>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: publishColor }} />
+          </div>
+          <p className="text-sm mt-4" style={{ color: publishColor, fontWeight: 500 }}>{publishLabel}</p>
+          <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--ink-light)" }}>
+            {summary.publish?.commitMessage ?? "ยังอ่านสถานะ deployment ไม่ได้"}
+          </p>
+          {summary.publish && (
+            <div className="mt-4 text-xs space-y-1" style={{ color: "var(--ink-light)" }}>
+              <p>Branch: {summary.publish.branch}</p>
+              <p>เพลงใน Playlist: {summary.trackCount}</p>
+              <a href={summary.publish.commitUrl} target="_blank" rel="noreferrer" className="inline-block mt-2" style={{ color: "var(--accent)" }}>
+                ดูการอัปเดตล่าสุด ↗
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // แปลงวันที่ให้ตรงรูปแบบ datetime-local ("YYYY-MM-DDTHH:mm") — ไม่งั้นช่อง input จะว่างแล้ววันที่เดิมหาย
 function toDatetimeLocal(date: string): string {
   if (!date) return "";
@@ -216,6 +477,7 @@ function DiaryForm({ initial, onSaved }: {
   onSaved?: () => void;
 }) {
   const isEdit = Boolean(initial?.slug);
+  const draftKey = `kyo-admin-diary-${initial?.slug ?? "new"}`;
   const [title, setTitle] = useState(initial?.title ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
   const [mood, setMood] = useState(initial?.mood ?? "😊");
@@ -224,11 +486,64 @@ function DiaryForm({ initial, onSaved }: {
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
   const [date, setDate] = useState(toDatetimeLocal(initial?.date ?? ""));
   const [draft, setDraft] = useState(initial?.draft ?? false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const initialSnapshotRef = useRef("");
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  const snapshot = useMemo(() => JSON.stringify({
+    title, content, mood, coverEmoji, tags, excerpt, date, draft,
+  }), [title, content, mood, coverEmoji, tags, excerpt, date, draft]);
+
+  useEffect(() => {
+    const initialSnapshot = JSON.stringify({
+      title: initial?.title ?? "",
+      content: initial?.content ?? "",
+      mood: initial?.mood ?? "😊",
+      coverEmoji: initial?.coverEmoji ?? "📔",
+      tags: initial?.tags?.join(", ") ?? "",
+      excerpt: initial?.excerpt ?? "",
+      date: toDatetimeLocal(initial?.date ?? ""),
+      draft: initial?.draft ?? false,
+    });
+    initialSnapshotRef.current = initialSnapshot;
+
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved && !isEdit) {
+        const value = JSON.parse(saved);
+        setTitle(value.title ?? "");
+        setContent(value.content ?? "");
+        setMood(value.mood ?? "😊");
+        setCoverEmoji(value.coverEmoji ?? "📔");
+        setTags(value.tags ?? "");
+        setExcerpt(value.excerpt ?? "");
+        setDate(value.date ?? "");
+        setDraft(value.draft ?? true);
+        setStatus({ ok: true, text: "กู้คืนฉบับร่างที่บันทึกอัตโนมัติแล้ว" });
+      }
+    } catch {
+      localStorage.removeItem(draftKey);
+    }
+    setDraftLoaded(true);
+  }, [draftKey, initial, isEdit]);
+
+  useEffect(() => {
+    if (!draftLoaded) return;
+    const timer = window.setTimeout(() => {
+      if (title.trim() || content.trim()) localStorage.setItem(draftKey, snapshot);
+      else localStorage.removeItem(draftKey);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [draftKey, draftLoaded, snapshot, title, content]);
+
+  const dirty = draftLoaded && snapshot !== initialSnapshotRef.current && Boolean(title.trim() || content.trim());
+  const scheduled = Boolean(date && Date.parse(date) > Date.now());
+
+  useUnsavedWarning(dirty);
+
+  async function savePost(nextDraft: boolean) {
     setBusy(true);
     setStatus(null);
 
@@ -240,7 +555,7 @@ function DiaryForm({ initial, onSaved }: {
       tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
       excerpt,
       date,
-      draft,
+      draft: nextDraft,
       ...(isEdit ? { slug: initial!.slug } : {}),
     };
 
@@ -252,9 +567,19 @@ function DiaryForm({ initial, onSaved }: {
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (res.ok) {
-      setStatus({ ok: true, text: isEdit ? "บันทึกแล้ว! 🎉 เว็บจะอัพเดตใน 1-2 นาที" : "โพสต์แล้ว! 🎉 เว็บจะอัพเดตใน 1-2 นาที" });
+      localStorage.removeItem(draftKey);
+      setDraft(nextDraft);
+      const savedSnapshot = JSON.stringify({ title, content, mood, coverEmoji, tags, excerpt, date, draft: nextDraft });
+      initialSnapshotRef.current = savedSnapshot;
+      setStatus({
+        ok: true,
+        text: nextDraft ? "บันทึกเป็นฉบับร่างแล้ว" : "ส่งเผยแพร่แล้ว — ดูสถานะได้ที่หน้าภาพรวม",
+      });
       if (!isEdit) {
         setTitle(""); setContent(""); setTags(""); setExcerpt(""); setDate(""); setDraft(false);
+        initialSnapshotRef.current = JSON.stringify({
+          title: "", content: "", mood, coverEmoji, tags: "", excerpt: "", date: "", draft: false,
+        });
       }
       onSaved?.();
     } else {
@@ -263,51 +588,128 @@ function DiaryForm({ initial, onSaved }: {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
-      <label className="block text-sm" style={labelStyle}>
-        หัวข้อ
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
-      </label>
-      <label className="block text-sm" style={labelStyle}>
-        เนื้อหา (ใช้ ## หัวข้อย่อย ได้)
-        <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none resize-y" style={{ ...inputStyle, fontFamily: "var(--font-lora, Georgia, serif)" }} />
-      </label>
-      <div className="flex gap-3">
-        <label className="block text-sm flex-1" style={labelStyle}>
-          Mood
-          <input value={mood} onChange={(e) => setMood(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none text-center" style={inputStyle} />
+    <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-4 items-start">
+      <form
+        onSubmit={(event) => { event.preventDefault(); savePost(false); }}
+        className="rounded-2xl p-5 sm:p-6 space-y-4"
+        style={card}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs" style={{ color: dirty ? "var(--accent)" : "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+            {dirty ? "● บันทึกร่างอัตโนมัติแล้ว" : "✓ ไม่มีข้อมูลค้าง"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen((open) => !open)}
+            className="lg:hidden text-xs px-3 py-1.5 rounded-full"
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}
+          >
+            {previewOpen ? "ซ่อนตัวอย่าง" : "ดูตัวอย่าง"}
+          </button>
+        </div>
+        <label className="block text-sm" style={labelStyle}>
+          หัวข้อ
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="วันนี้มีเรื่องอะไรอยากเล่า?" className="mt-2 w-full rounded-xl px-4 py-3 outline-none text-base" style={inputStyle} />
         </label>
-        <label className="block text-sm flex-1" style={labelStyle}>
-          Emoji ปก
-          <input value={coverEmoji} onChange={(e) => setCoverEmoji(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none text-center" style={inputStyle} />
+        <label className="block text-sm" style={labelStyle}>
+          เนื้อหา
+          <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder={"เขียนได้ตามปกติ\n\nใช้ ## เพื่อสร้างหัวข้อย่อย"} className="mt-2 w-full rounded-xl px-4 py-3 outline-none resize-y leading-relaxed" style={{ ...inputStyle, fontFamily: "var(--font-lora, Georgia, serif)" }} />
         </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm" style={labelStyle}>
+            Mood
+            <input value={mood} onChange={(e) => setMood(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none text-center" style={inputStyle} />
+          </label>
+          <label className="block text-sm" style={labelStyle}>
+            Emoji ปก
+            <input value={coverEmoji} onChange={(e) => setCoverEmoji(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none text-center" style={inputStyle} />
+          </label>
+        </div>
+        <label className="block text-sm" style={labelStyle}>
+          Tags
+          <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="เที่ยว, อาหาร" className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
+        </label>
+        <label className="block text-sm" style={labelStyle}>
+          คำโปรย
+          <input value={excerpt} onChange={(e) => setExcerpt(e.target.value)} placeholder="เว้นว่างให้ระบบดึงจากเนื้อหา" className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
+        </label>
+        <label className="block text-sm" style={labelStyle}>
+          วันเผยแพร่
+          <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
+          <span className="block text-xs mt-1" style={{ color: "var(--ink-light)" }}>เว้นว่างเพื่อใช้เวลาปัจจุบัน</span>
+        </label>
+        <StatusMessage status={status} />
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => savePost(true)}
+            disabled={busy || !title.trim() || !content.trim()}
+            className="py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40"
+            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+          >
+            {busy ? "กำลังบันทึก..." : "เก็บเป็นฉบับร่าง"}
+          </button>
+          <button type="submit" disabled={busy || !title.trim() || !content.trim()} className="py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+            {busy ? "กำลังส่ง..." : scheduled ? "ตั้งเวลาเผยแพร่" : isEdit && !draft ? "อัปเดตโพสต์" : "เผยแพร่"}
+          </button>
+        </div>
+      </form>
+
+      <div className={`${previewOpen ? "block" : "hidden"} lg:block lg:sticky lg:top-28`}>
+        <PostPreview title={title} content={content} mood={mood} coverEmoji={coverEmoji} excerpt={excerpt} tags={tags} />
       </div>
-      <label className="block text-sm" style={labelStyle}>
-        Tags (คั่นด้วย , )
-        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="เที่ยว, อาหาร" className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
-      </label>
-      <label className="block text-sm" style={labelStyle}>
-        Excerpt (สรุปย่อ)
-        <input value={excerpt} onChange={(e) => setExcerpt(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
-      </label>
-      <label className="block text-sm" style={labelStyle}>
-        วันที่ (เว้นว่างเพื่อใช้เวลาปัจจุบัน)
-        <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
-      </label>
-      <label className="flex items-center gap-2 text-sm cursor-pointer" style={labelStyle}>
-        <input
-          type="checkbox"
-          checked={draft}
-          onChange={(e) => setDraft(e.target.checked)}
-          className="rounded"
-        />
-        Draft (ซ่อนจากหน้าเว็บสาธารณะ)
-      </label>
-      <StatusMessage status={status} />
-      <button type="submit" disabled={busy || !title.trim() || !content.trim()} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
-        {busy ? (isEdit ? "กำลังบันทึก..." : "กำลังโพสต์...") : (isEdit ? "บันทึกการแก้ไข" : "โพสต์ไดอารี่")}
-      </button>
-    </form>
+    </div>
+  );
+}
+
+function PostPreview({ title, content, mood, coverEmoji, excerpt, tags }: {
+  title: string;
+  content: string;
+  mood: string;
+  coverEmoji: string;
+  excerpt: string;
+  tags: string;
+}) {
+  const lines = content.split("\n");
+  const tagList = tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+  return (
+    <aside className="rounded-2xl overflow-hidden" style={{ ...card, boxShadow: "0 4px 18px rgba(44,36,22,0.06)" }}>
+      <div className="px-5 py-3 text-xs flex items-center justify-between" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+        <span>ตัวอย่างก่อนเผยแพร่</span>
+        <span>Preview</span>
+      </div>
+      <article className="p-6">
+        <div className="text-4xl mb-4">{coverEmoji || "📔"}</div>
+        <div className="flex items-center gap-2 text-xs mb-2" style={{ color: "var(--accent)" }}>
+          <span>{mood || "😊"}</span>
+          <span>วันนี้</span>
+        </div>
+        <h2 className="text-2xl leading-snug" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>
+          {title || "หัวข้อโพสต์ของคุณ"}
+        </h2>
+        <p className="text-sm mt-3 italic leading-relaxed" style={{ color: "var(--ink-light)", fontFamily: "var(--font-lora, Georgia, serif)" }}>
+          {excerpt || content.replace(/\s+/g, " ").slice(0, 100) || "คำโปรยจะแสดงตรงนี้"}
+        </p>
+        <div className="my-5" style={{ borderTop: "1px solid var(--border)" }} />
+        <div className="space-y-3 text-sm leading-relaxed" style={{ color: "var(--ink)", fontFamily: "var(--font-lora, Georgia, serif)" }}>
+          {lines.map((line, index) => line.startsWith("## ") ? (
+            <h3 key={index} className="text-lg pt-2" style={{ fontWeight: 600 }}>{line.slice(3)}</h3>
+          ) : line.trim() ? (
+            <p key={index}>{line}</p>
+          ) : <div key={index} className="h-1" />)}
+          {!content && <p style={{ color: "var(--ink-light)" }}>เริ่มเขียนเพื่อดูตัวอย่างเนื้อหา</p>}
+        </div>
+        {tagList.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-5">
+            {tagList.map((tag) => (
+              <span key={tag} className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </article>
+    </aside>
   );
 }
 
@@ -325,6 +727,8 @@ interface PostItem {
 
 function PostsList() {
   const [posts, setPosts] = useState<PostItem[]>([]);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingPost, setEditingPost] = useState<(PostItem & { content: string }) | null>(null);
@@ -342,6 +746,19 @@ function PostsList() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const filteredPosts = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return posts.filter((post) => {
+      if (filter === "draft" && !post.draft) return false;
+      if (filter === "published" && post.draft) return false;
+      if (!needle) return true;
+      return [post.title, post.excerpt, post.tags.join(" ")]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    });
+  }, [posts, query, filter]);
 
   async function openEdit(post: PostItem) {
     setLoadingSlug(post.slug);
@@ -391,12 +808,43 @@ function PostsList() {
   return (
     <div className="space-y-4">
       <StatusMessage status={deleteStatus} />
+      <div className="rounded-2xl p-3 flex flex-col sm:flex-row gap-2" style={card}>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="ค้นหาชื่อโพสต์ คำโปรย หรือ tag"
+          className="flex-1 rounded-xl px-4 py-2.5 outline-none text-sm"
+          style={inputStyle}
+        />
+        <div className="flex gap-1">
+          {([
+            ["all", "ทั้งหมด"],
+            ["published", "เผยแพร่"],
+            ["draft", "ฉบับร่าง"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className="flex-1 text-xs px-3 py-2 rounded-xl"
+              style={{
+                backgroundColor: filter === value ? "var(--accent)" : "var(--accent-light)",
+                color: filter === value ? "#fff" : "var(--accent)",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       {loading && <p style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>กำลังโหลด...</p>}
       {error && <p className="text-sm" style={{ color: "#b3553a", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{error}</p>}
       {!loading && !error && posts.length === 0 && (
         <p style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>ยังไม่มีโพสต์</p>
       )}
-      {posts.map((post) => (
+      {!loading && posts.length > 0 && filteredPosts.length === 0 && (
+        <p className="text-sm text-center py-8" style={{ color: "var(--ink-light)" }}>ไม่พบโพสต์ที่ค้นหา</p>
+      )}
+      {filteredPosts.map((post) => (
         <div key={post.slug} className="rounded-2xl p-4" style={card}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -409,12 +857,27 @@ function PostsList() {
                     🔒 Draft
                   </span>
                 )}
+                {!post.draft && Date.parse(post.date) > Date.now() && (
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "#f5ead8", color: "#a06b2c", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+                    🕒 ตั้งเวลา
+                  </span>
+                )}
               </div>
               <p className="text-xs mt-1" style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
                 {post.date} · {post.mood}
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
+              {!post.draft && (
+                <Link
+                  href={`/posts/${post.slug}`}
+                  target="_blank"
+                  className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
+                  style={{ backgroundColor: "var(--cream)", color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+                >
+                  ดู ↗
+                </Link>
+              )}
               <button
                 onClick={() => openEdit(post)}
                 disabled={loadingSlug === post.slug}
@@ -438,91 +901,163 @@ function PostsList() {
   );
 }
 
-function PhotoForm() {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [caption, setCaption] = useState("");
-  const [location, setLocation] = useState("");
+interface PhotoDraft {
+  id: string;
+  file: File;
+  preview: string;
+  caption: string;
+  location: string;
+}
+
+function GalleryWorkspace() {
+  const [version, setVersion] = useState(0);
+  const [uploaderOpen, setUploaderOpen] = useState(true);
+  return (
+    <div className="space-y-5">
+      <button
+        onClick={() => setUploaderOpen((open) => !open)}
+        className="w-full rounded-2xl px-5 py-4 flex items-center justify-between text-left"
+        style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1px solid var(--border)" }}
+      >
+        <span>
+          <span className="block text-sm" style={{ fontWeight: 500 }}>＋ เพิ่มรูปใหม่</span>
+          <span className="block text-xs mt-1" style={{ color: "var(--ink-light)" }}>เลือกหลายรูปได้ในครั้งเดียว</span>
+        </span>
+        <span>{uploaderOpen ? "−" : "+"}</span>
+      </button>
+      {uploaderOpen && (
+        <PhotoForm
+          onUploaded={() => {
+            setVersion((value) => value + 1);
+            setUploaderOpen(false);
+          }}
+        />
+      )}
+      <PhotosList key={version} />
+    </div>
+  );
+}
+
+function PhotoForm({ onUploaded }: { onUploaded?: () => void }) {
+  const [items, setItems] = useState<PhotoDraft[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  useUnsavedWarning(items.length > 0);
 
   function pick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
-    setFile(f);
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
     setStatus(null);
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(f ? URL.createObjectURL(f) : null);
+    setItems((current) => [
+      ...current,
+      ...files.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        preview: URL.createObjectURL(file),
+        caption: file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "),
+        location: "",
+      })),
+    ]);
+  }
+
+  function updateItem(id: string, patch: Partial<PhotoDraft>) {
+    setItems((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
+  }
+
+  function removeItem(id: string) {
+    setItems((current) => {
+      const target = current.find((item) => item.id === id);
+      if (target) URL.revokeObjectURL(target.preview);
+      return current.filter((item) => item.id !== id);
+    });
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) return;
+    if (items.length === 0) return;
     setBusy(true);
     setStatus(null);
     try {
-      const compressed = await compressImage(file);
-      const form = new FormData();
-      form.append("file", compressed, file.name);
-      form.append("caption", caption);
-      form.append("location", location);
-      const res = await fetch("/api/admin/photo", { method: "POST", body: form });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setStatus({ ok: true, text: "อัพรูปแล้ว! 🎉 เว็บจะอัพเดตใน 1-2 นาที" });
-        setFile(null);
-        setPreview(null);
-        setCaption("");
-        setLocation("");
-      } else {
-        setStatus({ ok: false, text: data.error ?? "เกิดข้อผิดพลาด" });
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        setStatus({ ok: true, text: `กำลังอัปโหลดรูป ${index + 1}/${items.length}…` });
+        const compressed = await compressImage(item.file);
+        const form = new FormData();
+        form.append("file", compressed, item.file.name);
+        form.append("caption", item.caption);
+        form.append("location", item.location);
+        const res = await fetch("/api/admin/photo", { method: "POST", body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error ?? `อัปโหลด ${item.file.name} ไม่สำเร็จ`);
       }
-    } catch {
-      setStatus({ ok: false, text: "ประมวลผลรูปไม่สำเร็จ ลองรูปอื่นดูนะ" });
+      items.forEach((item) => URL.revokeObjectURL(item.preview));
+      setItems([]);
+      setStatus({ ok: true, text: `อัปโหลดครบ ${items.length} รูปแล้ว` });
+      onUploaded?.();
+    } catch (error) {
+      setStatus({ ok: false, text: error instanceof Error ? error.message : "ประมวลผลรูปไม่สำเร็จ ลองรูปอื่นดูนะ" });
     }
     setBusy(false);
   }
 
   return (
     <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
-      <input id="photo-file-input" type="file" accept="image/*" onChange={pick} className="hidden" />
-      {!preview ? (
-        <label
-          htmlFor="photo-file-input"
-          className="block rounded-2xl py-12 text-center cursor-pointer transition-opacity hover:opacity-80"
-          style={{ border: "2px dashed var(--accent)", backgroundColor: "var(--accent-light)" }}
-        >
-          <span className="block text-4xl mb-2">📷</span>
-          <span className="block text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)", fontWeight: 500 }}>
-            แตะที่นี่เพื่อเลือกรูป
-          </span>
-          <span className="block text-xs mt-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
-            เลือกจากอัลบั้มหรือถ่ายใหม่ได้เลย
-          </span>
-        </label>
-      ) : (
-        <div className="space-y-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt="preview" className="w-full rounded-xl" style={{ border: "1px solid var(--border)" }} />
-          <label
-            htmlFor="photo-file-input"
-            className="block text-center text-sm py-2 rounded-full cursor-pointer transition-opacity hover:opacity-80"
-            style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-          >
-            🔄 เปลี่ยนรูป
-          </label>
+      <input id="photo-file-input" type="file" accept="image/*" multiple onChange={pick} className="hidden" />
+      <label
+        htmlFor="photo-file-input"
+        className="block rounded-2xl py-8 text-center cursor-pointer transition-opacity hover:opacity-80"
+        style={{ border: "2px dashed var(--accent)", backgroundColor: "var(--accent-light)" }}
+      >
+        <span className="block text-3xl mb-2">📷</span>
+        <span className="block text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)", fontWeight: 500 }}>
+          {items.length > 0 ? "เลือกรูปเพิ่ม" : "เลือกรูปจากอัลบั้ม"}
+        </span>
+        <span className="block text-xs mt-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
+          เลือกพร้อมกันได้หลายรูป ระบบจะบีบอัดให้อัตโนมัติ
+        </span>
+      </label>
+
+      {items.length > 0 && (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {items.map((item) => (
+            <div key={item.id} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", backgroundColor: "var(--cream)" }}>
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={item.preview} alt="" className="w-full aspect-[4/3] object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeItem(item.id)}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full text-sm"
+                  style={{ backgroundColor: "rgba(44,36,22,0.78)", color: "#fff" }}
+                  aria-label={`เอารูป ${item.file.name} ออก`}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-3 space-y-2">
+                <input
+                  value={item.caption}
+                  onChange={(event) => updateItem(item.id, { caption: event.target.value })}
+                  placeholder="คำบรรยาย"
+                  className="w-full rounded-lg px-3 py-2 outline-none text-sm"
+                  style={inputStyle}
+                />
+                <input
+                  value={item.location}
+                  onChange={(event) => updateItem(item.id, { location: event.target.value })}
+                  placeholder="สถานที่ (ไม่บังคับ)"
+                  className="w-full rounded-lg px-3 py-2 outline-none text-sm"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      <label className="block text-sm" style={labelStyle}>
-        คำบรรยาย
-        <input value={caption} onChange={(e) => setCaption(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
-      </label>
-      <label className="block text-sm" style={labelStyle}>
-        สถานที่
-        <input value={location} onChange={(e) => setLocation(e.target.value)} className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none" style={inputStyle} />
-      </label>
       <StatusMessage status={status} />
-      <button type="submit" disabled={busy || !file} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
-        {busy ? "กำลังอัพโหลด..." : "อัพรูปขึ้น Gallery"}
+      <button type="submit" disabled={busy || items.length === 0} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+        {busy ? "กำลังอัปโหลด..." : `อัปโหลด ${items.length || ""} รูป`}
       </button>
     </form>
   );
@@ -533,16 +1068,19 @@ interface PhotoItem {
   caption: string;
   location: string;
   date: string;
+  featured: boolean;
 }
 
 function PhotosList() {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingPhoto, setEditingPhoto] = useState<PhotoItem | null>(null);
   const [editCaption, setEditCaption] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editFeatured, setEditFeatured] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionStatus, setActionStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -563,6 +1101,7 @@ function PhotosList() {
     setEditCaption(photo.caption);
     setEditLocation(photo.location);
     setEditDate(photo.date);
+    setEditFeatured(photo.featured);
     setActionStatus(null);
   }
 
@@ -573,7 +1112,13 @@ function PhotosList() {
     const res = await fetch("/api/admin/photo", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: editingPhoto.filename, caption: editCaption, location: editLocation, date: editDate }),
+      body: JSON.stringify({
+        filename: editingPhoto.filename,
+        caption: editCaption,
+        location: editLocation,
+        date: editDate,
+        featured: editFeatured,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -602,9 +1147,47 @@ function PhotosList() {
     }
   }
 
+  async function deleteSelected() {
+    if (selected.length === 0 || !confirm(`ลบรูปที่เลือก ${selected.length} รูปจริงๆ หรือ?`)) return;
+    setBusy(true);
+    for (const filename of selected) {
+      const res = await fetch("/api/admin/photo", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setActionStatus({ ok: false, text: data.error ?? `ลบ ${filename} ไม่สำเร็จ` });
+        setBusy(false);
+        load();
+        return;
+      }
+    }
+    setSelected([]);
+    setBusy(false);
+    setActionStatus({ ok: true, text: `ลบ ${selected.length} รูปแล้ว` });
+    load();
+  }
+
   return (
     <div className="space-y-4">
       <StatusMessage status={actionStatus} />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm" style={{ color: "var(--ink-light)" }}>
+          {photos.length} รูป {selected.length > 0 ? `· เลือกแล้ว ${selected.length}` : ""}
+        </p>
+        {selected.length > 0 && (
+          <button
+            onClick={deleteSelected}
+            disabled={busy}
+            className="text-xs px-3 py-2 rounded-full disabled:opacity-40"
+            style={{ backgroundColor: "#f5e0d8", color: "#b3553a" }}
+          >
+            ลบรูปที่เลือก
+          </button>
+        )}
+      </div>
       {editingPhoto && (
         <form onSubmit={saveEdit} className="rounded-2xl p-4 space-y-3" style={{ ...card, border: "1px solid var(--accent)" }}>
           <p className="text-sm font-medium" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink)" }}>
@@ -621,6 +1204,10 @@ function PhotosList() {
           <label className="block text-sm" style={labelStyle}>
             วันที่
             <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} />
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer" style={labelStyle}>
+            <input type="checkbox" checked={editFeatured} onChange={(event) => setEditFeatured(event.target.checked)} />
+            ใช้เป็นรูปเด่นของ Gallery
           </label>
           <div className="flex gap-2">
             <button type="submit" disabled={busy} className="text-xs px-4 py-2 rounded-full transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
@@ -640,13 +1227,31 @@ function PhotosList() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {photos.map((photo) => (
           <div key={photo.filename} className="rounded-xl overflow-hidden" style={card}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`/gallery/${photo.filename}`}
-              alt={photo.caption || photo.filename}
-              className="w-full aspect-square object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            />
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/gallery/${photo.filename}`}
+                alt={photo.caption || photo.filename}
+                className="w-full aspect-square object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+              <label className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer" style={{ backgroundColor: "rgba(255,254,249,0.9)" }}>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(photo.filename)}
+                  onChange={(event) => setSelected((current) => event.target.checked
+                    ? [...current, photo.filename]
+                    : current.filter((filename) => filename !== photo.filename))}
+                  className="accent-[var(--accent)]"
+                  aria-label={`เลือกรูป ${photo.caption || photo.filename}`}
+                />
+              </label>
+              {photo.featured && (
+                <span className="absolute top-2 right-2 text-xs px-2 py-1 rounded-full" style={{ backgroundColor: "rgba(44,36,22,0.78)", color: "#fff" }}>
+                  ★ รูปเด่น
+                </span>
+              )}
+            </div>
             <div className="p-2">
               <p className="text-xs truncate" style={{ color: "var(--ink)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
                 {photo.caption || photo.filename}
@@ -687,7 +1292,7 @@ interface MusicTrack {
   src: string;
 }
 
-function MusicManager() {
+export function LegacyMusicManager() {
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
@@ -890,61 +1495,330 @@ function MusicManager() {
 
 function CvForm() {
   const [file, setFile] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<CvPreview | null>(null);
+  const [busy, setBusy] = useState<"preview" | "publish" | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  useUnsavedWarning(Boolean(file || preview));
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function analyze() {
     if (!file) return;
-    setBusy(true);
+    setBusy("preview");
     setStatus(null);
     const form = new FormData();
     form.append("file", file);
+    form.append("mode", "preview");
     const res = await fetch("/api/admin/cv", { method: "POST", body: form });
     const data = await res.json().catch(() => ({}));
-    setBusy(false);
+    setBusy(null);
     if (res.ok) {
-      setStatus({ ok: true, text: "อัพเดต CV แล้ว! 🎉 เว็บจะอัพเดตใน 1-2 นาที" });
+      setPreview(data as CvPreview);
+      setStatus({
+        ok: true,
+        text: `อ่านข้อความสำเร็จ ${data.totalPages} หน้า ตรวจและแก้ข้อมูลด้านล่างก่อนบันทึก`,
+      });
+    } else {
+      setStatus({ ok: false, text: data.error ?? "เกิดข้อผิดพลาด" });
+    }
+  }
+
+  async function publish() {
+    if (!file || !preview) return;
+    setBusy("publish");
+    setStatus(null);
+    const form = new FormData();
+    form.append("file", file);
+    form.append("mode", "publish");
+    form.append("about", JSON.stringify(preview.about));
+    const res = await fetch("/api/admin/cv", { method: "POST", body: form });
+    const data = await res.json().catch(() => ({}));
+    setBusy(null);
+    if (res.ok) {
+      setStatus({
+        ok: true,
+        text: "อัปเดต CV และหน้า About แล้ว! เว็บจะเผยแพร่หลัง Deployment เสร็จ 🎉",
+      });
       setFile(null);
+      setPreview(null);
     } else {
       setStatus({ ok: false, text: data.error ?? "เกิดข้อผิดพลาด" });
     }
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
-      <p className="text-sm" style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontStyle: "italic", color: "var(--ink-light)" }}>
-        อัพไฟล์ PDF ใหม่มาแทน CV เดิมในหน้า About ได้เลย
-      </p>
-      <label className="block text-sm" style={labelStyle}>
-        ไฟล์ CV (PDF)
-        <input type="file" accept="application/pdf" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setStatus(null); }} className="mt-2 w-full text-sm" style={{ color: "var(--ink-light)" }} />
-      </label>
-      <StatusMessage status={status} />
-      <button type="submit" disabled={busy || !file} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
-        {busy ? "กำลังอัพโหลด..." : "อัพเดต CV"}
-      </button>
-    </form>
+    <div className="space-y-4">
+      <div className="rounded-2xl p-5 sm:p-6 space-y-4" style={card}>
+        <div className="flex items-center justify-between gap-3 rounded-xl p-4" style={{ backgroundColor: "var(--cream)" }}>
+          <div>
+            <p className="text-sm" style={{ color: "var(--ink)", fontWeight: 500 }}>CV ปัจจุบัน</p>
+            <p className="text-xs mt-1" style={{ color: "var(--ink-light)" }}>CV_Conlathit_Phuncam.pdf</p>
+          </div>
+          <a href="/CV_Conlathit_Phuncam.pdf" target="_blank" rel="noreferrer" className="text-xs px-3 py-2 rounded-full" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}>
+            เปิดดู ↗
+          </a>
+        </div>
+        <input
+          key={file?.lastModified ?? "empty"}
+          id="cv-file-input"
+          type="file"
+          accept="application/pdf"
+          onChange={(event) => {
+            setFile(event.target.files?.[0] ?? null);
+            setPreview(null);
+            setStatus(null);
+          }}
+          className="hidden"
+        />
+        <label htmlFor="cv-file-input" className="block rounded-2xl py-10 text-center cursor-pointer" style={{ border: "2px dashed var(--accent)", backgroundColor: "var(--accent-light)" }}>
+          <span className="block text-3xl mb-2">📄</span>
+          <span className="block text-sm" style={{ color: "var(--accent)", fontWeight: 500 }}>
+            {file ? file.name : "เลือกไฟล์ CV ใหม่"}
+          </span>
+          <span className="block text-xs mt-1" style={{ color: "var(--ink-light)" }}>PDF ที่เลือกข้อความได้ · ไม่เกิน 4MB · ไม่เกิน 12 หน้า</span>
+        </label>
+        <StatusMessage status={status} />
+        <button
+          type="button"
+          onClick={analyze}
+          disabled={busy !== null || !file}
+          className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40"
+          style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
+        >
+          {busy === "preview" ? "กำลังอ่านข้อความ..." : preview ? "อ่านข้อความใหม่อีกครั้ง" : "อ่านข้อความจาก CV"}
+        </button>
+      </div>
+
+      {preview && (
+        <div className="space-y-4">
+          {preview.warnings.length > 0 && (
+            <div className="rounded-2xl p-4" style={{ backgroundColor: "#fff5dc", border: "1px solid #e6cf98" }}>
+              <p className="text-sm mb-2" style={{ color: "#765b20", fontWeight: 600 }}>จุดที่ควรตรวจเอง</p>
+              <ul className="space-y-1">
+                {preview.warnings.map((warning) => (
+                  <li key={warning} className="text-xs" style={{ color: "#765b20" }}>• {warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <CvReviewEditor
+            value={preview.about}
+            onChange={(about) => setPreview((current) => current ? { ...current, about } : current)}
+          />
+
+          <details className="rounded-2xl p-4" style={card}>
+            <summary className="text-sm cursor-pointer" style={{ color: "var(--accent)", fontWeight: 500 }}>
+              ดูข้อความที่อ่านจาก PDF
+            </summary>
+            <pre className="mt-4 text-xs whitespace-pre-wrap max-h-80 overflow-auto" style={{ color: "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+              {preview.rawText}
+            </pre>
+          </details>
+
+          <button
+            type="button"
+            onClick={publish}
+            disabled={busy !== null}
+            className="w-full py-3 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40"
+            style={{ backgroundColor: "var(--ink)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)", fontWeight: 600 }}
+          >
+            {busy === "publish" ? "กำลังบันทึก CV และ About..." : "ยืนยัน อัปเดต CV และหน้า About"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
-interface AboutData {
-  profile: {
-    name: string;
-    nickname: string;
-    location: string;
-    phone: string;
-    email: string;
-    linkedin: string;
-    cv: string;
-    summary: string;
-  };
-  experience: Array<{ year: string; role: string; company: string; items: string[] }>;
-  research: Array<{ year: string; title: string; type: string; pdf?: string; image?: string; items: string[] }>;
-  education: Array<{ year: string; degree: string; school: string }>;
-  skills: Array<{ category: string; items: string[] }>;
-  certifications: string[];
-  languages: Array<{ lang: string; level: string }>;
+type AboutData = CvAboutData;
+
+function cloneValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function CvDraftList<T>({
+  items,
+  onChange,
+  emptyItem,
+  renderEditor,
+}: {
+  items: T[];
+  onChange: (items: T[]) => void;
+  emptyItem: T;
+  renderEditor: (item: T, onItemChange: (item: T) => void) => React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      {items.map((item, index) => (
+        <div key={index} className="rounded-2xl p-4 space-y-3" style={card}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs" style={{ color: "var(--ink-light)" }}>รายการที่ {index + 1}</span>
+            <button
+              type="button"
+              onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
+              className="text-xs px-3 py-1 rounded-full"
+              style={{ backgroundColor: "#f5e0d8", color: "#b3553a" }}
+            >
+              ลบ
+            </button>
+          </div>
+          {renderEditor(item, (updated) => {
+            const next = [...items];
+            next[index] = updated;
+            onChange(next);
+          })}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...items, cloneValue(emptyItem)])}
+        className="w-full py-2 rounded-full text-sm"
+        style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}
+      >
+        + เพิ่มรายการ
+      </button>
+    </div>
+  );
+}
+
+function CvReviewEditor({
+  value,
+  onChange,
+}: {
+  value: AboutData;
+  onChange: (value: AboutData) => void;
+}) {
+  const [section, setSection] = useState<AboutSection>("profile");
+  const sections: Array<[AboutSection, string, number | null]> = [
+    ["profile", "ข้อมูลส่วนตัว", null],
+    ["experience", "ประสบการณ์", value.experience.length],
+    ["research", "ผลงาน", value.research.length],
+    ["education", "การศึกษา", value.education.length],
+    ["skills", "ทักษะ", value.skills.length],
+    ["certifications", "ใบรับรอง", value.certifications.length],
+    ["languages", "ภาษา", value.languages.length],
+  ];
+
+  function setProfile(patch: Partial<AboutData["profile"]>) {
+    onChange({ ...value, profile: { ...value.profile, ...patch } });
+  }
+
+  const profileFields: Array<[
+    keyof AboutData["profile"],
+    string,
+    string?
+  ]> = [
+    ["name", "ชื่อ"],
+    ["nickname", "ชื่อเล่น"],
+    ["location", "ที่อยู่"],
+    ["phone", "โทรศัพท์"],
+    ["email", "อีเมล", "email"],
+    ["linkedin", "LinkedIn URL", "url"],
+    ["github", "GitHub URL", "url"],
+    ["website", "เว็บไซต์", "url"],
+  ];
+
+  return (
+    <div className="rounded-2xl p-4 sm:p-5 space-y-4" style={{ ...card, border: "1px solid var(--accent)" }}>
+      <div>
+        <p className="text-base" style={{ color: "var(--ink)", fontWeight: 600 }}>ตรวจและแก้ข้อมูลก่อนเผยแพร่</p>
+        <p className="text-xs mt-1" style={{ color: "var(--ink-light)" }}>
+          ข้อมูลทุกช่องแก้เองได้ ระบบจะยังไม่เปลี่ยนหน้าเว็บจนกว่าจะกดยืนยันด้านล่าง
+        </p>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {sections.map(([key, label, count]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setSection(key)}
+            className="text-xs px-3 py-2 rounded-full whitespace-nowrap"
+            style={{
+              backgroundColor: section === key ? "var(--accent)" : "var(--accent-light)",
+              color: section === key ? "#fff" : "var(--accent)",
+            }}
+          >
+            {label}{count === null ? "" : ` (${count})`}
+          </button>
+        ))}
+      </div>
+
+      {section === "profile" && (
+        <div className="space-y-3">
+          {profileFields.map(([key, label, type]) => (
+            <label key={key} className="block text-xs" style={labelStyle}>
+              {label}
+              <input
+                type={type ?? "text"}
+                value={String(value.profile[key] ?? "")}
+                onChange={(event) => setProfile({ [key]: event.target.value })}
+                className="mt-1 w-full rounded-xl px-3 py-2 outline-none text-sm"
+                style={inputStyle}
+              />
+            </label>
+          ))}
+          <label className="block text-xs" style={labelStyle}>
+            Summary
+            <textarea
+              value={value.profile.summary}
+              onChange={(event) => setProfile({ summary: event.target.value })}
+              rows={6}
+              className="mt-1 w-full rounded-xl px-3 py-2 outline-none text-sm resize-y"
+              style={inputStyle}
+            />
+          </label>
+        </div>
+      )}
+
+      {section === "experience" && (
+        <CvDraftList
+          items={value.experience}
+          onChange={(experience) => onChange({ ...value, experience })}
+          emptyItem={{ year: "", role: "", company: "", items: [] }}
+          renderEditor={(item, update) => <ExperienceEditor item={item} onChange={update} />}
+        />
+      )}
+      {section === "research" && (
+        <CvDraftList
+          items={value.research}
+          onChange={(research) => onChange({ ...value, research })}
+          emptyItem={{ year: "", title: "", type: "", items: [] }}
+          renderEditor={(item, update) => <ResearchEditor item={item} onChange={update} />}
+        />
+      )}
+      {section === "education" && (
+        <CvDraftList
+          items={value.education}
+          onChange={(education) => onChange({ ...value, education })}
+          emptyItem={{ year: "", degree: "", school: "" }}
+          renderEditor={(item, update) => <EducationEditor item={item} onChange={update} />}
+        />
+      )}
+      {section === "skills" && (
+        <CvDraftList
+          items={value.skills}
+          onChange={(skills) => onChange({ ...value, skills })}
+          emptyItem={{ category: "", items: [] }}
+          renderEditor={(item, update) => <SkillEditor item={item} onChange={update} />}
+        />
+      )}
+      {section === "certifications" && (
+        <ItemsEditor
+          items={value.certifications}
+          onChange={(certifications) => onChange({ ...value, certifications })}
+          placeholder="ชื่อใบรับรอง"
+        />
+      )}
+      {section === "languages" && (
+        <CvDraftList
+          items={value.languages}
+          onChange={(languages) => onChange({ ...value, languages })}
+          emptyItem={{ lang: "", level: "" }}
+          renderEditor={(item, update) => <LanguageEditor item={item} onChange={update} />}
+        />
+      )}
+    </div>
+  );
 }
 
 function AboutEditor() {
@@ -964,31 +1838,37 @@ function AboutEditor() {
   if (error) return <p className="text-sm" style={{ color: "#b3553a", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{error}</p>;
   if (!data) return null;
 
-  const sections: [AboutSection, string][] = [
-    ["profile", "Profile"],
-    ["experience", "Experience"],
-    ["research", "Research"],
-    ["education", "Education"],
-    ["skills", "Skills"],
-    ["certifications", "Certifications"],
-    ["languages", "Languages"],
+  const sections: [AboutSection, string, string][] = [
+    ["profile", "👤 ข้อมูลส่วนตัว", "ชื่อ ช่องทางติดต่อ และคำแนะนำตัว"],
+    ["experience", "💼 ประสบการณ์", `${data.experience.length} รายการ`],
+    ["research", "🔬 ผลงานและวิจัย", `${data.research.length} รายการ`],
+    ["education", "🎓 การศึกษา", `${data.education.length} รายการ`],
+    ["skills", "🛠️ ทักษะ", `${data.skills.length} หมวด`],
+    ["certifications", "📜 ใบรับรอง", `${data.certifications.length} รายการ`],
+    ["languages", "🌏 ภาษา", `${data.languages.length} ภาษา`],
   ];
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {sections.map(([s, label]) => (
+      <div className="flex justify-end">
+        <Link href="/about" target="_blank" className="text-xs px-3 py-2 rounded-full" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}>
+          เปิดหน้า About ↗
+        </Link>
+      </div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {sections.map(([s, label, detail]) => (
           <button
             key={s}
             onClick={() => setSection(s)}
-            className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
+            className="text-left rounded-xl px-4 py-3 transition-opacity hover:opacity-80"
             style={{
               fontFamily: "var(--font-inter, Inter, sans-serif)",
               backgroundColor: section === s ? "var(--ink)" : "var(--accent-light)",
               color: section === s ? "#fff" : "var(--accent)",
             }}
           >
-            {label}
+            <span className="block text-sm" style={{ fontWeight: 500 }}>{label}</span>
+            <span className="block text-xs mt-1" style={{ color: section === s ? "#e8ddd0" : "var(--ink-light)" }}>{detail}</span>
           </button>
         ))}
       </div>
@@ -1054,6 +1934,7 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
   const [profile, setProfile] = useState({ ...data.profile });
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  useUnsavedWarning(JSON.stringify(profile) !== JSON.stringify(data.profile));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1076,6 +1957,8 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
     ["phone", "โทรศัพท์"],
     ["email", "อีเมล", "email"],
     ["linkedin", "LinkedIn URL"],
+    ["github", "GitHub URL"],
+    ["website", "เว็บไซต์"],
     ["cv", "ชื่อไฟล์ CV"],
   ];
 
@@ -1086,7 +1969,7 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
           {label}
           <input
             type={type ?? "text"}
-            value={profile[key]}
+            value={profile[key] ?? ""}
             onChange={(e) => setProfile({ ...profile, [key]: e.target.value })}
             className="mt-1 w-full rounded-xl px-3 py-2 outline-none"
             style={inputStyle}

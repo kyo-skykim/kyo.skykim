@@ -52,6 +52,12 @@ export default function AboutPage() {
               <span>{profile.phone}</span>
               <a href={`mailto:${profile.email}`} className="hover:opacity-70">{profile.email}</a>
               <a href={profile.linkedin} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">LinkedIn</a>
+              {profile.github && (
+                <a href={profile.github} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">GitHub</a>
+              )}
+              {profile.website && (
+                <a href={profile.website} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">Website</a>
+              )}
             </div>
           </div>
         </section>

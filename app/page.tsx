@@ -2,6 +2,8 @@ import Link from "next/link";
 import Nav from "@/components/layout/Nav";
 import { getAllPosts, formatDate } from "@/lib/diary";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   const posts = getAllPosts();
 

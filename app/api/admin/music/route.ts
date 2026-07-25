@@ -55,11 +55,46 @@ function notConfigured() {
   );
 }
 
-// GET — list tracks
-export async function GET() {
+function isTrack(value: unknown): value is Track {
+  if (!value || typeof value !== "object") return false;
+  const track = value as Partial<Track>;
+  return (
+    (track.type === "youtube" || track.type === "file") &&
+    typeof track.title === "string" &&
+    track.title.trim().length > 0 &&
+    typeof track.src === "string" &&
+    track.src.trim().length > 0 &&
+    (track.artist === undefined || typeof track.artist === "string")
+  );
+}
+
+// GET — list tracks, or fetch YouTube metadata for the add form
+export async function GET(request: Request) {
   if (!(await isLoggedIn())) return notLoggedIn();
   if (!isConfigured()) return notConfigured();
   try {
+    const url = new URL(request.url).searchParams.get("url")?.trim();
+    if (url) {
+      const videoId = parseYouTubeId(url);
+      if (!videoId) {
+        return Response.json({ error: "ลิงก์ YouTube ไม่ถูกต้อง" }, { status: 400 });
+      }
+      const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const response = await fetch(
+        `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`,
+        { cache: "no-store" }
+      );
+      if (!response.ok) {
+        return Response.json({ error: "อ่านข้อมูลเพลงจาก YouTube ไม่สำเร็จ" }, { status: 502 });
+      }
+      const metadata = await response.json();
+      return Response.json({
+        videoId,
+        title: String(metadata.title ?? ""),
+        artist: String(metadata.author_name ?? ""),
+        thumbnail: String(metadata.thumbnail_url ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`),
+      });
+    }
     return Response.json({ tracks: await readTracks() });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "เกิดข้อผิดพลาด" }, { status: 502 });
@@ -171,5 +206,37 @@ export async function DELETE(request: Request) {
     return Response.json({ ok: true });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "ลบเพลงไม่สำเร็จ" }, { status: 502 });
+  }
+}
+
+// PUT — edit metadata or reorder the complete playlist
+export async function PUT(request: Request) {
+  if (!(await isLoggedIn())) return notLoggedIn();
+  if (!isConfigured()) return notConfigured();
+
+  const body = await request.json().catch(() => null);
+  const tracks = body?.tracks;
+  if (!Array.isArray(tracks) || !tracks.every(isTrack)) {
+    return Response.json({ error: "ข้อมูล playlist ไม่ถูกต้อง" }, { status: 400 });
+  }
+  if (tracks.length > 100) {
+    return Response.json({ error: "playlist มีได้สูงสุด 100 เพลง" }, { status: 400 });
+  }
+
+  const normalized: Track[] = tracks.map((track: Track) => ({
+    type: track.type,
+    title: track.title.trim().slice(0, 160),
+    ...(track.artist?.trim() ? { artist: track.artist.trim().slice(0, 160) } : {}),
+    src: track.src.trim(),
+  }));
+
+  try {
+    await commitFiles(
+      [{ path: MUSIC_PATH, content: tracksJson(normalized), encoding: "utf-8" }],
+      "Update music playlist"
+    );
+    return Response.json({ ok: true, tracks: normalized });
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : "บันทึก playlist ไม่สำเร็จ" }, { status: 502 });
   }
 }

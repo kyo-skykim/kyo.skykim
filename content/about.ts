@@ -12,6 +12,8 @@ export interface Profile {
   phone: string;
   email: string;
   linkedin: string;
+  github?: string;
+  website?: string;
   cv: string;
   summary: string;
 }

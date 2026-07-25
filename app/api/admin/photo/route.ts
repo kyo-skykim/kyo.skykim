@@ -15,7 +15,12 @@ function makeFilename(originalName: string): string {
   return `photo-${stamp}-${rand}.${ext}`;
 }
 
-type GalleryMeta = Record<string, { caption?: string; date?: string; location?: string }>;
+type GalleryMeta = Record<string, {
+  caption?: string;
+  date?: string;
+  location?: string;
+  featured?: boolean;
+}>;
 
 async function readGalleryMeta(): Promise<GalleryMeta> {
   const metaRaw = await readFile("content/gallery.json");
@@ -54,6 +59,7 @@ export async function GET() {
       caption: meta[filename]?.caption ?? "",
       location: meta[filename]?.location ?? "",
       date: meta[filename]?.date ?? "",
+      featured: meta[filename]?.featured === true,
     }));
 
     return Response.json({ photos });
@@ -134,12 +140,19 @@ export async function PATCH(request: Request) {
   const caption = String(body?.caption ?? "").trim();
   const location = String(body?.location ?? "").trim();
   const date = String(body?.date ?? "").trim() || bangkokToday();
+  const featured = body?.featured === true;
 
   const meta = await readGalleryMeta();
+  if (featured) {
+    for (const key of Object.keys(meta)) {
+      if (key !== filename && meta[key]?.featured) meta[key] = { ...meta[key], featured: false };
+    }
+  }
   meta[filename] = {
     ...(caption ? { caption } : {}),
     date,
     ...(location ? { location } : {}),
+    ...(featured ? { featured: true } : {}),
   };
 
   try {
