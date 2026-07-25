@@ -19,6 +19,7 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
   const [playing, setPlaying] = useState(false);
   const [ytReady, setYtReady] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [playlistOpen, setPlaylistOpen] = useState(false);
   const [volume, setVolume] = useState(50);
 
   const idxRef = useRef(0);
@@ -174,6 +175,49 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
                 {volume}
               </span>
             </div>
+
+            {playlistOpen && tracks.length > 1 && (
+              <div
+                className="mb-3 max-h-48 overflow-y-auto rounded-xl p-1"
+                style={{ backgroundColor: "var(--cream)", border: "1px solid var(--border)" }}
+                aria-label="Playlist"
+              >
+                {tracks.map((item, i) => {
+                  const active = i === idx;
+                  return (
+                    <button
+                      key={`${item.src}-${i}`}
+                      onClick={() => playTrack(i)}
+                      className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-opacity hover:opacity-70"
+                      style={{
+                        backgroundColor: active ? "var(--accent-light)" : "transparent",
+                        color: active ? "var(--accent)" : "var(--ink)",
+                      }}
+                      aria-label={`Play ${item.title}`}
+                      aria-current={active ? "true" : undefined}
+                    >
+                      <span className="w-4 text-center text-xs shrink-0">{active && playing ? "♫" : i + 1}</span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block truncate text-sm leading-snug"
+                          style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontWeight: active ? 500 : 400 }}
+                        >
+                          {item.title}
+                        </span>
+                        {item.artist && (
+                          <span
+                            className="block truncate text-xs"
+                            style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
+                          >
+                            {item.artist}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -226,9 +270,37 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
             </button>
           )}
 
+          {tracks.length > 1 && (
+            <button
+              onClick={() => {
+                if (minimized) {
+                  setMinimized(false);
+                  setPlaylistOpen(true);
+                } else {
+                  setPlaylistOpen((open) => !open);
+                }
+              }}
+              className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+              style={{
+                backgroundColor: playlistOpen ? "var(--accent)" : "var(--accent-light)",
+                color: playlistOpen ? "#fff" : "var(--accent)",
+              }}
+              aria-label={playlistOpen ? "Hide playlist" : "Show playlist"}
+              aria-expanded={playlistOpen}
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                <path d="M1 3h7M1 6.5h7M1 10h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M10 7v4.5a1.5 1.5 0 1 1-1.5-1.5c.55 0 1.05.25 1.5.6V5.5l3-1v4.1a1.5 1.5 0 1 1-1.5-1.5c.55 0 1.05.25 1.5.6" fill="currentColor" stroke="currentColor" strokeWidth="0.5" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+
           {/* Minimize/Expand */}
           <button
-            onClick={() => setMinimized((m) => !m)}
+            onClick={() => {
+              setMinimized((m) => !m);
+              setPlaylistOpen(false);
+            }}
             className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
             style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}
             aria-label={minimized ? "Expand" : "Minimize"}
