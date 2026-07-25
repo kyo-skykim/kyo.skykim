@@ -2,7 +2,7 @@
 const API = "https://api.github.com";
 
 const repo = () => process.env.GITHUB_REPO ?? "kyo-skykim/kyo.skykim";
-const branch = () => process.env.GITHUB_BRANCH ?? "claude/create-blog-ypkRL";
+const branch = () => process.env.GITHUB_BRANCH ?? "main";
 
 export function isConfigured(): boolean {
   return Boolean(process.env.GITHUB_TOKEN);
