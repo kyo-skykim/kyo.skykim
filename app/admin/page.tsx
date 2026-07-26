@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import MusicManagerStudio from "@/components/admin/MusicManagerStudio";
 import type { CvAboutData, CvHistoryItem, CvPreview } from "@/lib/admin/cv-types";
+import type { CurrentlyData, CurrentlyItem } from "@/lib/currently";
 
-type Tab = "dashboard" | "new-post" | "posts" | "gallery" | "music" | "cv" | "about";
+type Tab = "dashboard" | "new-post" | "posts" | "gallery" | "music" | "currently" | "cv" | "about";
 type AboutSection = "profile" | "experience" | "research" | "education" | "skills" | "certifications" | "languages";
 
 const card: React.CSSProperties = {
@@ -64,6 +65,7 @@ export default function AdminPage() {
     ["posts", "✎", "โพสต์"],
     ["gallery", "▧", "รูปภาพ"],
     ["music", "♫", "เพลง"],
+    ["currently", "◌", "Currently"],
     ["about", "◯", "เกี่ยวกับ"],
     ["cv", "▤", "CV"],
   ];
@@ -154,6 +156,11 @@ export default function AdminPage() {
             {tab === "music" && (
               <AdminSection title="Playlist" description="เพิ่ม ทดลองฟัง แก้ไข และจัดลำดับเพลง">
                 <MusicManagerStudio />
+              </AdminSection>
+            )}
+            {tab === "currently" && (
+              <AdminSection title="Currently" description="แก้ไขสิ่งที่กำลังทำ เรียน ฟัง หรือสนใจอยู่ตอนนี้">
+                <CurrentlyEditor />
               </AdminSection>
             )}
             {tab === "about" && (
@@ -2679,5 +2686,83 @@ function CertificationsEditor({ data, onSaved }: { data: AboutData; onSaved: (d:
         {busy ? "กำลังบันทึก..." : "บันทึก Certifications"}
       </button>
     </form>
+  );
+}
+
+function CurrentlyEditor() {
+  const [data, setData] = useState<CurrentlyData>({ updatedAt: "", items: [] });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/currently")
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error ?? "โหลด Currently ไม่สำเร็จ");
+        setData(result as CurrentlyData);
+      })
+      .catch((error) => setStatus({ ok: false, text: error instanceof Error ? error.message : "โหลด Currently ไม่สำเร็จ" }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function updateItem(index: number, patch: Partial<CurrentlyItem>) {
+    setData((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item),
+    }));
+  }
+
+  function addItem() {
+    setData((current) => ({
+      ...current,
+      items: [...current.items, { id: `item-${Date.now()}`, label: "กำลัง...", emoji: "✨", title: "", detail: "" }],
+    }));
+  }
+
+  async function save() {
+    setBusy(true);
+    setStatus(null);
+    const response = await fetch("/api/admin/currently", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json().catch(() => ({}));
+    setBusy(false);
+    setStatus(response.ok
+      ? { ok: true, text: "บันทึก Currently แล้ว เว็บจะอัปเดตหลัง Deployment เสร็จ 🎉" }
+      : { ok: false, text: result.error ?? "บันทึก Currently ไม่สำเร็จ" });
+  }
+
+  if (loading) return <p style={{ color: "var(--ink-light)" }}>กำลังโหลด Currently...</p>;
+
+  return (
+    <div className="space-y-4">
+      {data.items.map((item, index) => (
+        <div key={item.id} className="rounded-2xl p-5 space-y-3" style={card}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs" style={{ color: "var(--ink-light)" }}>การ์ดที่ {index + 1}</span>
+            <button type="button" onClick={() => setData((current) => ({ ...current, items: current.items.filter((_, itemIndex) => itemIndex !== index) }))} className="text-xs px-3 py-1 rounded-full" style={{ backgroundColor: "#f5e0d8", color: "#b3553a" }}>
+              ลบ
+            </button>
+          </div>
+          <div className="grid sm:grid-cols-[1fr_3fr] gap-3">
+            <label className="block text-sm" style={labelStyle}>ป้ายกำกับ<input value={item.label} onChange={(event) => updateItem(index, { label: event.target.value })} className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} /></label>
+            <label className="block text-sm" style={labelStyle}>หัวข้อ<input value={item.title} onChange={(event) => updateItem(index, { title: event.target.value })} className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} /></label>
+          </div>
+          <div className="grid sm:grid-cols-[4rem_1fr] gap-3">
+            <label className="block text-sm" style={labelStyle}>Emoji<input value={item.emoji} onChange={(event) => updateItem(index, { emoji: event.target.value })} className="mt-1 w-full rounded-xl px-3 py-2 outline-none text-center" style={inputStyle} /></label>
+            <label className="block text-sm" style={labelStyle}>รายละเอียด<textarea value={item.detail} onChange={(event) => updateItem(index, { detail: event.target.value })} rows={2} className="mt-1 w-full rounded-xl px-3 py-2 outline-none resize-y" style={inputStyle} /></label>
+          </div>
+          <label className="block text-sm" style={labelStyle}>ลิงก์ (ไม่บังคับ)<input value={item.href ?? ""} onChange={(event) => updateItem(index, { href: event.target.value })} placeholder="https://..." className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} /></label>
+        </div>
+      ))}
+      <div className="grid sm:grid-cols-2 gap-2">
+        <button type="button" onClick={addItem} disabled={data.items.length >= 12} className="py-2.5 rounded-full text-sm disabled:opacity-40" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}>+ เพิ่มการ์ด</button>
+        <button type="button" onClick={save} disabled={busy} className="py-2.5 rounded-full text-sm disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff" }}>{busy ? "กำลังบันทึก..." : "บันทึก Currently"}</button>
+      </div>
+      <StatusMessage status={status} />
+    </div>
   );
 }

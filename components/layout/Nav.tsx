@@ -3,6 +3,7 @@ import DarkModeToggle from "@/components/ui/DarkModeToggle";
 
 const links = [
   { href: "/", label: "Diary" },
+  { href: "/currently", label: "Currently" },
   { href: "/gallery", label: "Gallery" },
   { href: "/about", label: "About" },
 ];

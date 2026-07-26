@@ -1,0 +1,26 @@
+{
+  "updatedAt": "2026-07-26",
+  "items": [
+    {
+      "id": "doing",
+      "label": "กำลังทำ",
+      "emoji": "🛠️",
+      "title": "พัฒนาเว็บไซต์ส่วนตัว",
+      "detail": "ปรับปรุง My Diary และระบบจัดการเนื้อหาให้ใช้งานง่ายขึ้น"
+    },
+    {
+      "id": "learning",
+      "label": "กำลังเรียน",
+      "emoji": "📚",
+      "title": "Data Engineering & Power BI",
+      "detail": "ฝึกทำ pipeline, data modeling และ dashboard ที่ใช้งานได้จริง"
+    },
+    {
+      "id": "listening",
+      "label": "กำลังฟัง",
+      "emoji": "🎧",
+      "title": "เพลงใน Playlist",
+      "detail": "เปิดเพลงจากเครื่องเล่นด้านล่างระหว่างทำงาน"
+    }
+  ]
+}

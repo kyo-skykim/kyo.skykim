@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPost, getAllPosts, getRelatedPosts, formatDate } from "@/lib/diary";
+import ReadingMode from "@/components/diary/ReadingMode";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -124,6 +125,7 @@ export default async function PostPage({ params }: Props) {
               </span>
             ))}
           </div>
+          <ReadingMode contentHtml={post.content} />
         </header>
 
         {/* Divider */}

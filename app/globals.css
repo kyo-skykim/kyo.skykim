@@ -49,3 +49,22 @@ body {
   font-weight: 600;
   color: var(--ink);
 }
+
+.reading-mode-content {
+  max-width: 46rem;
+  margin: 0 auto;
+  font-family: var(--font-lora, Georgia, serif);
+  font-size: clamp(1.08rem, 1rem + 0.35vw, 1.3rem);
+  line-height: 2;
+  color: var(--ink-light);
+}
+
+.reading-mode-content p {
+  margin-bottom: 1.5rem;
+}
+
+.reading-mode-content h2,
+.reading-mode-content h3 {
+  color: var(--ink);
+  margin: 2.5rem 0 1rem;
+}
