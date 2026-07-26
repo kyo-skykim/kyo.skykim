@@ -1,5 +1,6 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, readFile } from "@/lib/admin/github";
+import { rejectCrossOrigin } from "@/lib/admin/security";
 
 const ABOUT_PATH = "content/about.json";
 
@@ -29,6 +30,8 @@ export async function GET() {
 
 // PUT — write updated data back to about.json
 export async function PUT(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }

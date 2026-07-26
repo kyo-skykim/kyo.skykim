@@ -1,5 +1,7 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles } from "@/lib/admin/github";
+import { rejectCrossOrigin } from "@/lib/admin/security";
+import { hasFileSignature } from "@/lib/admin/file-validation";
 
 // อัพโหลดไฟล์แนบ (PDF / รูป) เข้า public/ แล้วคืน path สำหรับใส่ในช่องข้อมูล
 const ALLOWED = /\.(pdf|jpe?g|png|webp|gif|avif)$/i;
@@ -16,6 +18,8 @@ function sanitizeName(name: string): string {
 }
 
 export async function POST(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -36,6 +40,10 @@ export async function POST(request: Request) {
   }
   if (file.size > 4 * 1024 * 1024) {
     return Response.json({ error: "ไฟล์ใหญ่เกิน 4MB" }, { status: 413 });
+  }
+  const kind = file.name.toLowerCase().endsWith(".pdf") ? "pdf" : "image";
+  if (!(await hasFileSignature(file, kind))) {
+    return Response.json({ error: "ชนิดไฟล์ไม่ตรงกับนามสกุลไฟล์" }, { status: 400 });
   }
 
   const filename = sanitizeName(file.name);

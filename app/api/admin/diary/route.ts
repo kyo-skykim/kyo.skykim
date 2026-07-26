@@ -1,5 +1,6 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, fileExists } from "@/lib/admin/github";
+import { rejectCrossOrigin } from "@/lib/admin/security";
 
 // เวลาปัจจุบันแบบ "2026-06-10T14:30:00" (โซนเวลาไทย)
 function bangkokNow(): string {
@@ -18,6 +19,8 @@ function makeSlug(title: string, now: string): string {
 }
 
 export async function POST(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }

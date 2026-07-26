@@ -2,6 +2,8 @@ import { extractText, getDocumentProxy, renderPageAsImage } from "unpdf";
 import { mkdir } from "node:fs/promises";
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, readFile } from "@/lib/admin/github";
+import { rejectCrossOrigin } from "@/lib/admin/security";
+import { hasFileSignature } from "@/lib/admin/file-validation";
 import { parseCvText } from "@/lib/admin/cv-parser";
 import type { CvAboutData, CvPreview } from "@/lib/admin/cv-types";
 
@@ -104,6 +106,8 @@ async function extractCvText(buffer: Uint8Array): Promise<{
 }
 
 export async function POST(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -122,6 +126,9 @@ export async function POST(request: Request) {
       { error: tooLarge ? "ไฟล์ใหญ่เกิน 4MB" : "กรุณาเลือกไฟล์ PDF ที่ถูกต้อง" },
       { status: tooLarge ? 413 : 400 }
     );
+  }
+  if (!(await hasFileSignature(file, "pdf"))) {
+    return Response.json({ error: "ไฟล์นี้ไม่ใช่ PDF ที่ถูกต้อง" }, { status: 400 });
   }
 
   const mode = String(form.get("mode") ?? "preview");

@@ -1,5 +1,7 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, deleteFile, readFile, listFiles } from "@/lib/admin/github";
+import { rejectCrossOrigin } from "@/lib/admin/security";
+import { hasFileSignature } from "@/lib/admin/file-validation";
 
 function bangkokToday(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
@@ -70,6 +72,8 @@ export async function GET() {
 
 // POST — upload new photo
 export async function POST(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -85,8 +89,14 @@ export async function POST(request: Request) {
   if (!form || !(file instanceof File) || file.size === 0) {
     return Response.json({ error: "ไม่พบไฟล์รูป" }, { status: 400 });
   }
+  if (!/\.(jpe?g|png|webp|gif|avif)$/i.test(file.name)) {
+    return Response.json({ error: "รองรับเฉพาะ jpg, png, webp, gif และ avif" }, { status: 400 });
+  }
   if (file.size > 4 * 1024 * 1024) {
     return Response.json({ error: "ไฟล์ใหญ่เกิน 4MB" }, { status: 413 });
+  }
+  if (!(await hasFileSignature(file, "image"))) {
+    return Response.json({ error: "ไฟล์รูปไม่ถูกต้อง" }, { status: 400 });
   }
 
   const caption = String(form.get("caption") ?? "").trim();
@@ -121,6 +131,8 @@ export async function POST(request: Request) {
 
 // PATCH — update photo metadata
 export async function PATCH(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -135,6 +147,9 @@ export async function PATCH(request: Request) {
   const filename = (body?.filename ?? "").trim();
   if (!filename) {
     return Response.json({ error: "ต้องระบุชื่อไฟล์รูป" }, { status: 400 });
+  }
+  if (!/^[a-z0-9][a-z0-9._-]{0,119}\.(?:jpe?g|png|webp|gif|avif)$/i.test(filename)) {
+    return Response.json({ error: "ชื่อไฟล์รูปไม่ถูกต้อง" }, { status: 400 });
   }
 
   const caption = String(body?.caption ?? "").trim();
@@ -169,6 +184,8 @@ export async function PATCH(request: Request) {
 
 // DELETE — delete photo and remove from gallery.json
 export async function DELETE(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -183,6 +200,9 @@ export async function DELETE(request: Request) {
   const filename = (body?.filename ?? "").trim();
   if (!filename) {
     return Response.json({ error: "ต้องระบุชื่อไฟล์รูป" }, { status: 400 });
+  }
+  if (!/^[a-z0-9][a-z0-9._-]{0,119}\.(?:jpe?g|png|webp|gif|avif)$/i.test(filename)) {
+    return Response.json({ error: "ชื่อไฟล์รูปไม่ถูกต้อง" }, { status: 400 });
   }
 
   // อ่าน gallery.json แล้วลบ entry

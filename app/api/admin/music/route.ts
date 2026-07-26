@@ -1,5 +1,7 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, deleteFile, readFile } from "@/lib/admin/github";
+import { rejectCrossOrigin } from "@/lib/admin/security";
+import { hasFileSignature } from "@/lib/admin/file-validation";
 
 const MUSIC_PATH = "content/music.json";
 
@@ -64,7 +66,10 @@ function isTrack(value: unknown): value is Track {
     track.title.trim().length > 0 &&
     typeof track.src === "string" &&
     track.src.trim().length > 0 &&
-    (track.artist === undefined || typeof track.artist === "string")
+    (track.artist === undefined || typeof track.artist === "string") &&
+    (track.type === "youtube"
+      ? /^[\w-]{11}$/.test(track.src)
+      : /^music\/[a-z0-9][a-z0-9._-]{0,119}\.(?:mp3|mp4|m4a|aac|wav|ogg)$/i.test(track.src))
   );
 }
 
@@ -103,6 +108,8 @@ export async function GET(request: Request) {
 
 // POST — add track (JSON = YouTube link, multipart = file upload)
 export async function POST(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) return notLoggedIn();
   if (!isConfigured()) return notConfigured();
 
@@ -125,6 +132,9 @@ export async function POST(request: Request) {
           { error: "ไฟล์ใหญ่เกิน 4MB — ลองบีบอัดเพลงให้เล็กลง หรือใช้ลิงก์ YouTube แทน" },
           { status: 413 }
         );
+      }
+      if (!(await hasFileSignature(file, "audio"))) {
+        return Response.json({ error: "ไฟล์เพลงไม่ถูกต้อง" }, { status: 400 });
       }
 
       const title = String(form.get("title") ?? "").trim() || file.name.replace(/\.[^.]+$/, "");
@@ -180,6 +190,8 @@ export async function POST(request: Request) {
 
 // DELETE — remove track by index
 export async function DELETE(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) return notLoggedIn();
   if (!isConfigured()) return notConfigured();
 
@@ -211,6 +223,8 @@ export async function DELETE(request: Request) {
 
 // PUT — edit metadata or reorder the complete playlist
 export async function PUT(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) return notLoggedIn();
   if (!isConfigured()) return notConfigured();
 

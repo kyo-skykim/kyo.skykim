@@ -17,6 +17,9 @@ export async function GET(
   }
 
   const { slug } = await params;
+  if (!/^[a-z0-9][a-z0-9-]{0,79}$/i.test(slug)) {
+    return Response.json({ error: "slug ไม่ถูกต้อง" }, { status: 400 });
+  }
   const raw = await readFile(`content/diary/${slug}.md`);
   if (!raw) {
     return Response.json({ error: "ไม่พบโพสต์นี้" }, { status: 404 });

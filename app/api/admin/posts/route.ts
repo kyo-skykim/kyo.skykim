@@ -1,5 +1,6 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, deleteFile, listFiles, readFile } from "@/lib/admin/github";
+import { rejectCrossOrigin } from "@/lib/admin/security";
 import matter from "gray-matter";
 
 function bangkokNow(): string {
@@ -89,6 +90,8 @@ export async function GET() {
 
 // PUT — update existing post
 export async function PUT(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -105,6 +108,9 @@ export async function PUT(request: Request) {
   const content = (body?.content ?? "").trim();
   if (!slug || !title || !content) {
     return Response.json({ error: "ต้องระบุ slug, title และ content" }, { status: 400 });
+  }
+  if (!/^[a-z0-9][a-z0-9-]{0,79}$/i.test(slug)) {
+    return Response.json({ error: "slug ไม่ถูกต้อง" }, { status: 400 });
   }
 
   const mood = (body?.mood ?? "😊").trim() || "😊";
@@ -132,6 +138,8 @@ export async function PUT(request: Request) {
 
 // DELETE — delete post
 export async function DELETE(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -146,6 +154,9 @@ export async function DELETE(request: Request) {
   const slug = (body?.slug ?? "").trim();
   if (!slug) {
     return Response.json({ error: "ต้องระบุ slug" }, { status: 400 });
+  }
+  if (!/^[a-z0-9][a-z0-9-]{0,79}$/i.test(slug)) {
+    return Response.json({ error: "slug ไม่ถูกต้อง" }, { status: 400 });
   }
 
   try {
