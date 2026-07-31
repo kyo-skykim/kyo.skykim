@@ -1,7 +1,7 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles } from "@/lib/admin/github";
 import { rejectCrossOrigin } from "@/lib/admin/security";
-import { hasFileSignature } from "@/lib/admin/file-validation";
+import { detectImageExtension, hasFileSignature } from "@/lib/admin/file-validation";
 
 // อัพโหลดไฟล์แนบ (PDF / รูป) เข้า public/ แล้วคืน path สำหรับใส่ในช่องข้อมูล
 const ALLOWED = /\.(pdf|jpe?g|png|webp|gif|avif)$/i;
@@ -46,7 +46,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "ชนิดไฟล์ไม่ตรงกับนามสกุลไฟล์" }, { status: 400 });
   }
 
-  const filename = sanitizeName(file.name);
+  const detectedExtension = kind === "image" ? await detectImageExtension(file) : null;
+  const filename = kind === "image" && detectedExtension
+    ? sanitizeName(file.name.replace(/\.[^.]+$/, `.${detectedExtension}`))
+    : sanitizeName(file.name);
   const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
 
   try {

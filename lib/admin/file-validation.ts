@@ -22,3 +22,13 @@ export async function hasFileSignature(file: File, kind: "pdf" | "image" | "audi
   const aac = bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xf6) === 0xf0;
   return mp3 || wav || ogg || mp4 || aac;
 }
+
+export async function detectImageExtension(file: File): Promise<"jpg" | "png" | "gif" | "webp" | "avif" | null> {
+  const bytes = new Uint8Array(await file.slice(0, 64).arrayBuffer());
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
+  if (ascii(bytes, 0, 8) === "\x89PNG\r\n\x1a\n") return "png";
+  if (ascii(bytes, 0, 4) === "GIF8") return "gif";
+  if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") return "webp";
+  if (ascii(bytes, 4, 8).includes("ftypavif")) return "avif";
+  return null;
+}

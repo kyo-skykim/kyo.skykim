@@ -1,14 +1,14 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, deleteFile, readFile, listFiles } from "@/lib/admin/github";
 import { rejectCrossOrigin } from "@/lib/admin/security";
-import { hasFileSignature } from "@/lib/admin/file-validation";
+import { detectImageExtension, hasFileSignature } from "@/lib/admin/file-validation";
 
 function bangkokToday(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
 }
 
-function makeFilename(originalName: string): string {
-  const ext = /\.(png|webp|gif|avif)$/i.exec(originalName)?.[1]?.toLowerCase() ?? "jpg";
+function makeFilename(originalName: string, detectedExtension?: string): string {
+  const ext = detectedExtension ?? /\.(png|webp|gif|avif)$/i.exec(originalName)?.[1]?.toLowerCase() ?? "jpg";
   const stamp = new Date()
     .toLocaleString("sv-SE", { timeZone: "Asia/Bangkok" })
     .replace(/[^0-9]/g, "")
@@ -98,12 +98,14 @@ export async function POST(request: Request) {
   if (!(await hasFileSignature(file, "image"))) {
     return Response.json({ error: "ไฟล์รูปไม่ถูกต้อง" }, { status: 400 });
   }
+  const detectedExtension = await detectImageExtension(file);
+  if (!detectedExtension) return Response.json({ error: "อ่านชนิดไฟล์รูปไม่สำเร็จ" }, { status: 400 });
 
   const caption = String(form.get("caption") ?? "").trim();
   const location = String(form.get("location") ?? "").trim();
   const date = String(form.get("date") ?? "").trim() || bangkokToday();
 
-  const filename = makeFilename(file.name);
+  const filename = makeFilename(file.name, detectedExtension);
   const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
 
   // อ่าน gallery.json ปัจจุบันจาก GitHub แล้วเพิ่ม entry ใหม่
