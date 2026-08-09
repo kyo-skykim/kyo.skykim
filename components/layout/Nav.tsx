@@ -33,6 +33,19 @@ export default function Nav() {
                 {l.label}
               </Link>
             ))}
+            <a
+              href="https://draftstage-48.aomsinzxc.chatgpt.site/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-75 whitespace-nowrap"
+              style={{
+                fontFamily: "var(--font-inter, Inter, sans-serif)",
+                color: "var(--accent)",
+                backgroundColor: "var(--accent-light)",
+              }}
+            >
+              48 Draftstage ↗
+            </a>
           </div>
           <DarkModeToggle />
         </div>
