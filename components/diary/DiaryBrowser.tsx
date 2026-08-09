@@ -8,23 +8,16 @@ type BrowserPost = PostMeta & { dateLabel: string };
 
 export default function DiaryBrowser({ posts }: { posts: BrowserPost[] }) {
   const [query, setQuery] = useState("");
-  const [tag, setTag] = useState("ทั้งหมด");
-  const tags = useMemo(
-    () => Array.from(new Set(posts.flatMap((post) => post.tags))).sort((a, b) => a.localeCompare(b, "th")),
-    [posts]
-  );
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("th");
     return posts.filter((post) => {
-      const matchesTag = tag === "ทั้งหมด" || post.tags.includes(tag);
-      if (!matchesTag) return false;
       if (!normalized) return true;
-      return [post.title, post.excerpt, ...post.tags]
+      return [post.title, post.excerpt]
         .join(" ")
         .toLocaleLowerCase("th")
         .includes(normalized);
     });
-  }, [posts, query, tag]);
+  }, [posts, query]);
 
   return (
     <>
@@ -35,30 +28,11 @@ export default function DiaryBrowser({ posts }: { posts: BrowserPost[] }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="ค้นหาจากชื่อ เนื้อหา หรือ tag..."
+            placeholder="ค้นหาจากชื่อหรือเนื้อหา..."
             className="w-full rounded-2xl py-3 pl-10 pr-4 outline-none text-sm"
             style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)", color: "var(--ink)" }}
           />
         </label>
-        {tags.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1" aria-label="กรองตาม tag">
-            {["ทั้งหมด", ...tags].map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setTag(item)}
-                className="shrink-0 rounded-full px-3 py-1.5 text-xs transition-opacity hover:opacity-75"
-                style={{
-                  backgroundColor: tag === item ? "var(--accent)" : "var(--accent-light)",
-                  color: tag === item ? "#fff" : "var(--accent)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        )}
         <p className="text-xs" style={{ color: "var(--ink-light)" }}>
           แสดง {filtered.length} จาก {posts.length} บันทึก
         </p>
@@ -106,7 +80,7 @@ export default function DiaryBrowser({ posts }: { posts: BrowserPost[] }) {
 
       {filtered.length === 0 && (
         <p className="text-center py-20" style={{ color: "var(--ink-light)", fontStyle: "italic" }}>
-          ไม่พบบันทึกที่ตรงกัน ลองเปลี่ยนคำค้นหาหรือ tag ดูนะ
+          ไม่พบบันทึกที่ตรงกัน ลองเปลี่ยนคำค้นหาดูนะ
         </p>
       )}
     </>
