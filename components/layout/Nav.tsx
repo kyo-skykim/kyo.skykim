@@ -11,18 +11,18 @@ const links = [
 export default function Nav() {
   return (
     <nav
-      className="border-b py-4 px-6"
+      className="border-b py-4 px-4 sm:px-6"
       style={{ borderColor: "var(--border)", backgroundColor: "var(--warm-white)" }}
     >
-      <div className="max-w-2xl mx-auto flex items-center justify-between">
+      <div className="max-w-2xl mx-auto flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/"
           style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontWeight: 500, color: "var(--ink)", fontSize: "1.1rem" }}
         >
           My Diary
         </Link>
-        <div className="flex items-center gap-4">
-          <div className="flex gap-5">
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-x-5">
             {links.map((l) => (
               <Link
                 key={l.href}
@@ -37,7 +37,7 @@ export default function Nav() {
               href="https://draftstage-48.aomsinzxc.chatgpt.site/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-75 whitespace-nowrap"
+              className="whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition-opacity hover:opacity-75"
               style={{
                 fontFamily: "var(--font-inter, Inter, sans-serif)",
                 color: "var(--accent)",

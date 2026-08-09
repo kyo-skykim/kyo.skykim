@@ -64,13 +64,6 @@ export default function DiaryBrowser({ posts }: { posts: BrowserPost[] }) {
                   <p className="text-sm leading-relaxed mb-3 line-clamp-2" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink-light)", fontStyle: "italic" }}>
                     {post.excerpt}
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {post.tags.map((postTag) => (
-                      <span key={postTag} className="text-xs px-2.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}>
-                        {postTag}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               </div>
             </article>
