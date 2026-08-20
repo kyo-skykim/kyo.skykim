@@ -26,11 +26,17 @@ async function gh(path: string, init?: RequestInit) {
   return res.json();
 }
 
-export interface CommitFile {
-  path: string;
-  content: string;
-  encoding: "utf-8" | "base64";
-}
+export type CommitFile =
+  | {
+      path: string;
+      content: string;
+      encoding: "utf-8" | "base64";
+      delete?: false;
+    }
+  | {
+      path: string;
+      delete: true;
+    };
 
 export async function commitFiles(files: CommitFile[], message: string): Promise<string> {
   const r = repo();
@@ -40,8 +46,17 @@ export async function commitFiles(files: CommitFile[], message: string): Promise
   const headSha: string = ref.object.sha;
   const headCommit = await gh(`/repos/${r}/git/commits/${headSha}`);
 
-  const treeEntries = [];
+  const treeEntries: Array<{
+    path: string;
+    mode: "100644";
+    type: "blob";
+    sha: string | null;
+  }> = [];
   for (const f of files) {
+    if (f.delete) {
+      treeEntries.push({ path: f.path, mode: "100644", type: "blob", sha: null });
+      continue;
+    }
     const blob = await gh(`/repos/${r}/git/blobs`, {
       method: "POST",
       body: JSON.stringify({ content: f.content, encoding: f.encoding }),

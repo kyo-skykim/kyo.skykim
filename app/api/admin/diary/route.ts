@@ -1,6 +1,7 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, fileExists } from "@/lib/admin/github";
 import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
+import { randomBytes } from "node:crypto";
 
 // เวลาปัจจุบันแบบ "2026-06-10T14:30:00" (โซนเวลาไทย)
 function bangkokNow(): string {
@@ -55,7 +56,18 @@ export async function POST(request: Request) {
   const date = (body?.date ?? "").trim() || now;
   let slug = makeSlug(title, now);
   if (await fileExists(`content/diary/${slug}.md`)) {
-    slug = `${slug}-${now.slice(11, 16).replace(":", "")}`;
+    const stamp = now.replace(/[^0-9]/g, "").slice(0, 14);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const suffix = randomBytes(3).toString("hex");
+      const candidate = `${slug.slice(0, 55)}-${stamp}-${suffix}`;
+      if (!(await fileExists(`content/diary/${candidate}.md`))) {
+        slug = candidate;
+        break;
+      }
+    }
+    if (await fileExists(`content/diary/${slug}.md`)) {
+      return Response.json({ error: "สร้างชื่อไฟล์โพสต์ที่ไม่ซ้ำไม่สำเร็จ กรุณาลองใหม่" }, { status: 409 });
+    }
   }
 
   const mdLines = [

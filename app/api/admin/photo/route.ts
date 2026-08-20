@@ -1,5 +1,5 @@
 import { isLoggedIn } from "@/lib/admin/auth";
-import { isConfigured, commitFiles, deleteFile, readFile, listFiles } from "@/lib/admin/github";
+import { isConfigured, commitFiles, readFile, listFiles, type CommitFile } from "@/lib/admin/github";
 import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 import { detectImageExtension, hasFileSignature } from "@/lib/admin/file-validation";
 
@@ -192,7 +192,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
-  const sizeError = rejectOversizedRequest(request, 8 * 1024);
+  const sizeError = rejectOversizedRequest(request, 64 * 1024);
   if (sizeError) return sizeError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
@@ -205,30 +205,44 @@ export async function DELETE(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const filename = (body?.filename ?? "").trim();
-  if (!filename) {
+  const requestedFilenames: unknown[] = Array.isArray(body?.filenames)
+    ? body.filenames
+    : body?.filename
+      ? [body.filename]
+      : [];
+  const filenames = Array.from(
+    new Set(requestedFilenames.map((value) => String(value).trim()).filter(Boolean))
+  );
+  if (filenames.length === 0) {
     return Response.json({ error: "ต้องระบุชื่อไฟล์รูป" }, { status: 400 });
   }
-  if (!/^[a-z0-9][a-z0-9._-]{0,119}\.(?:jpe?g|png|webp|gif|avif)$/i.test(filename)) {
+  if (filenames.length > 50) {
+    return Response.json({ error: "ลบรูปได้ครั้งละไม่เกิน 50 รูป" }, { status: 400 });
+  }
+  if (filenames.some((filename) => !/^[a-z0-9][a-z0-9._-]{0,119}\.(?:jpe?g|png|webp|gif|avif)$/i.test(filename))) {
     return Response.json({ error: "ชื่อไฟล์รูปไม่ถูกต้อง" }, { status: 400 });
   }
 
-  // อ่าน gallery.json แล้วลบ entry
-  const meta = await readGalleryMeta();
-  delete meta[filename];
-  const updatedMeta = JSON.stringify(meta, null, 2) + "\n";
-
   try {
-    // ลบไฟล์รูปและอัพเดต gallery.json ใน commit เดียว
-    // ต้องทำแยกกันเพราะ deleteFile ใช้ Contents API แต่ commitFiles ใช้ Git Data API
-    await deleteFile(`public/gallery/${filename}`, `Delete gallery photo: ${filename}`);
-    await commitFiles(
-      [{ path: "content/gallery.json", content: updatedMeta, encoding: "utf-8" }],
-      `Remove gallery entry: ${filename}`
-    );
+    const [meta, storedFiles] = await Promise.all([readGalleryMeta(), listFiles("public/gallery")]);
+    for (const filename of filenames) delete meta[filename];
+
+    const stored = new Set(storedFiles);
+    const changes: CommitFile[] = filenames
+      .filter((filename) => stored.has(filename))
+      .map((filename) => ({ path: `public/gallery/${filename}`, delete: true }));
+    changes.push({
+      path: "content/gallery.json",
+      content: JSON.stringify(meta, null, 2) + "\n",
+      encoding: "utf-8",
+    });
+
+    await commitFiles(changes, filenames.length === 1
+      ? `Delete gallery photo: ${filenames[0]}`
+      : `Delete ${filenames.length} gallery photos`);
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "ลบรูปไม่สำเร็จ" }, { status: 502 });
   }
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, deleted: filenames.length });
 }

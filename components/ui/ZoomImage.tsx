@@ -7,6 +7,7 @@ export default function ZoomImage({ src, alt }: { src: string; alt: string }) {
 
   return (
     <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={alt}
@@ -21,6 +22,7 @@ export default function ZoomImage({ src, alt }: { src: string; alt: string }) {
           style={{ backgroundColor: "rgba(44,36,22,0.85)", backdropFilter: "blur(4px)" }}
           onClick={() => setOpen(false)}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}

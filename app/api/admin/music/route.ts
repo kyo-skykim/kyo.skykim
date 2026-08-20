@@ -1,5 +1,5 @@
 import { isLoggedIn } from "@/lib/admin/auth";
-import { isConfigured, commitFiles, deleteFile, readFile } from "@/lib/admin/github";
+import { isConfigured, commitFiles, fileExists, readFile, type CommitFile } from "@/lib/admin/github";
 import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 import { hasFileSignature } from "@/lib/admin/file-validation";
 
@@ -212,13 +212,13 @@ export async function DELETE(request: Request) {
     }
     const [removed] = tracks.splice(index, 1);
 
-    if (removed.type === "file") {
-      await deleteFile(`public/${removed.src}`, `Delete music file: ${removed.title}`);
+    const changes: CommitFile[] = [
+      { path: MUSIC_PATH, content: tracksJson(tracks), encoding: "utf-8" },
+    ];
+    if (removed.type === "file" && await fileExists(`public/${removed.src}`)) {
+      changes.push({ path: `public/${removed.src}`, delete: true });
     }
-    await commitFiles(
-      [{ path: MUSIC_PATH, content: tracksJson(tracks), encoding: "utf-8" }],
-      `Remove track: ${removed.title}`
-    );
+    await commitFiles(changes, `Remove track: ${removed.title}`);
     return Response.json({ ok: true });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "ลบเพลงไม่สำเร็จ" }, { status: 502 });

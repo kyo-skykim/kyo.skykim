@@ -81,7 +81,10 @@ export default function MusicManagerStudio() {
     else setStatus({ ok: false, text: data.error ?? "โหลดข้อมูลไม่สำเร็จ" });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   async function lookupYouTube() {
     if (!ytUrl.trim()) return;

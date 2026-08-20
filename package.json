@@ -14,7 +14,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
     "gray-matter": "^4.0.3",
-    "next": "16.2.6",
+    "next": "^16.3.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "remark": "^15.0.1",
@@ -29,8 +29,13 @@
     "@types/react-dom": "^19",
     "@types/youtube": "^0.2.0",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "^16.3.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "gray-matter": {
+      "js-yaml": "3.15.1"
+    }
   }
 }

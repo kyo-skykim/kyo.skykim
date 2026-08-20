@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Track } from "@/lib/music";
 
 declare global {
@@ -25,11 +25,14 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
   const idxRef = useRef(0);
   const volumeRef = useRef(50);
   const tracksRef = useRef(tracks);
-  tracksRef.current = tracks;
   const playTrackRef = useRef<(i: number) => void>(() => {});
 
   const hasYouTube = tracks.some((t) => t.type === "youtube");
-  const track = tracks[idx];
+  const track = tracks[idx] ?? tracks[0];
+
+  useEffect(() => {
+    tracksRef.current = tracks;
+  }, [tracks]);
 
   useEffect(() => {
     if (!hasYouTube) return;
@@ -68,7 +71,7 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function playTrack(i: number) {
+  const playTrack = useCallback((i: number) => {
     const t = tracksRef.current[i];
     if (!t) return;
     setIdx(i);
@@ -89,8 +92,11 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
         a.play().catch(() => {});
       }
     }
-  }
-  playTrackRef.current = playTrack;
+  }, [ytReady]);
+
+  useEffect(() => {
+    playTrackRef.current = playTrack;
+  }, [playTrack]);
 
   function toggle() {
     const t = tracksRef.current[idxRef.current];

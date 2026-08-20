@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import MusicManagerStudio from "@/components/admin/MusicManagerStudio";
 import type { CvAboutData, CvHistoryItem, CvPreview } from "@/lib/admin/cv-types";
@@ -26,17 +26,55 @@ const labelStyle: React.CSSProperties = {
   color: "var(--ink-light)",
 };
 
+async function loadImageSource(file: File): Promise<{
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  cleanup: () => void;
+}> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      cleanup: () => bitmap.close(),
+    };
+  } catch {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.src = url;
+    try {
+      await image.decode();
+      return {
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        cleanup: () => URL.revokeObjectURL(url),
+      };
+    } catch {
+      URL.revokeObjectURL(url);
+      throw new Error("เบราว์เซอร์นี้อ่านรูปไม่ได้ กรุณาแปลงรูปเป็น JPG แล้วลองอีกครั้ง");
+    }
+  }
+}
+
 async function compressImage(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+  const heic = /\.(?:heic|heif)$/i.test(file.name) || /^image\/hei[cf]$/i.test(file.type);
+  const image = await loadImageSource(file);
   const maxDim = 1600;
-  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-  if (scale === 1 && file.size < 800 * 1024) return file;
+  const scale = Math.min(1, maxDim / Math.max(image.width, image.height));
+  if (!heic && scale === 1 && file.size < 800 * 1024) {
+    image.cleanup();
+    return file;
+  }
 
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
+  canvas.width = Math.round(image.width * scale);
+  canvas.height = Math.round(image.height * scale);
   const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image.source, 0, 0, canvas.width, canvas.height);
+  image.cleanup();
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -269,6 +307,26 @@ function useUnsavedWarning(active: boolean) {
   }, [active]);
 }
 
+function useNow(refreshMs = 60_000) {
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    const firstUpdate = window.setTimeout(update, 0);
+    const interval = window.setInterval(update, refreshMs);
+    return () => {
+      window.clearTimeout(firstUpdate);
+      window.clearInterval(interval);
+    };
+  }, [refreshMs]);
+
+  return now;
+}
+
+function isScheduledPost(post: Pick<PostItem, "date" | "draft">, now: number) {
+  return !post.draft && now > 0 && Date.parse(post.date) > now;
+}
+
 interface DashboardSummary {
   posts: PostItem[];
   photoCount: number;
@@ -321,10 +379,15 @@ function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
     });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
-  const publishedPosts = summary.posts.filter((post) => !post.draft).length;
+  const now = useNow();
+  const publishedPosts = summary.posts.filter((post) => !post.draft && !isScheduledPost(post, now)).length;
   const draftPosts = summary.posts.filter((post) => post.draft).length;
+  const scheduledPosts = summary.posts.filter((post) => isScheduledPost(post, now)).length;
   const publishLabel = {
     success: "เผยแพร่สำเร็จ",
     pending: "กำลังเผยแพร่",
@@ -386,10 +449,11 @@ function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
         ))}
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           ["โพสต์แล้ว", publishedPosts, "posts" as Tab],
           ["ฉบับร่าง", draftPosts, "posts" as Tab],
+          ["ตั้งเวลา", scheduledPosts, "posts" as Tab],
           ["รูปภาพ", summary.photoCount, "gallery" as Tab],
         ].map(([label, count, target]) => (
           <button
@@ -425,7 +489,9 @@ function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
                 <span className="text-xl">{post.coverEmoji}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm truncate" style={{ color: "var(--ink)" }}>{post.title}</span>
-                  <span className="block text-xs" style={{ color: "var(--ink-light)" }}>{post.draft ? "ฉบับร่าง" : "เผยแพร่แล้ว"}</span>
+                  <span className="block text-xs" style={{ color: "var(--ink-light)" }}>
+                    {post.draft ? "ฉบับร่าง" : isScheduledPost(post, now) ? "ตั้งเวลาไว้" : "เผยแพร่แล้ว"}
+                  </span>
                 </span>
               </button>
             ))}
@@ -497,43 +563,55 @@ function DiaryForm({ initial, onSaved }: {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  const initialSnapshotRef = useRef("");
+  const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify({
+    title: initial?.title ?? "",
+    content: initial?.content ?? "",
+    mood: initial?.mood ?? "😊",
+    coverEmoji: initial?.coverEmoji ?? "📔",
+    tags: initial?.tags?.join(", ") ?? "",
+    excerpt: initial?.excerpt ?? "",
+    date: toDatetimeLocal(initial?.date ?? ""),
+    draft: initial?.draft ?? false,
+  }));
 
   const snapshot = useMemo(() => JSON.stringify({
     title, content, mood, coverEmoji, tags, excerpt, date, draft,
   }), [title, content, mood, coverEmoji, tags, excerpt, date, draft]);
 
   useEffect(() => {
-    const initialSnapshot = JSON.stringify({
-      title: initial?.title ?? "",
-      content: initial?.content ?? "",
-      mood: initial?.mood ?? "😊",
-      coverEmoji: initial?.coverEmoji ?? "📔",
-      tags: initial?.tags?.join(", ") ?? "",
-      excerpt: initial?.excerpt ?? "",
-      date: toDatetimeLocal(initial?.date ?? ""),
-      draft: initial?.draft ?? false,
-    });
-    initialSnapshotRef.current = initialSnapshot;
+    const timer = window.setTimeout(() => {
+      const nextInitialSnapshot = JSON.stringify({
+        title: initial?.title ?? "",
+        content: initial?.content ?? "",
+        mood: initial?.mood ?? "😊",
+        coverEmoji: initial?.coverEmoji ?? "📔",
+        tags: initial?.tags?.join(", ") ?? "",
+        excerpt: initial?.excerpt ?? "",
+        date: toDatetimeLocal(initial?.date ?? ""),
+        draft: initial?.draft ?? false,
+      });
+      setInitialSnapshot(nextInitialSnapshot);
 
-    try {
-      const saved = localStorage.getItem(draftKey);
-      if (saved && !isEdit) {
-        const value = JSON.parse(saved);
-        setTitle(value.title ?? "");
-        setContent(value.content ?? "");
-        setMood(value.mood ?? "😊");
-        setCoverEmoji(value.coverEmoji ?? "📔");
-        setTags(value.tags ?? "");
-        setExcerpt(value.excerpt ?? "");
-        setDate(value.date ?? "");
-        setDraft(value.draft ?? true);
-        setStatus({ ok: true, text: "กู้คืนฉบับร่างที่บันทึกอัตโนมัติแล้ว" });
+      try {
+        const saved = localStorage.getItem(draftKey);
+        if (saved && !isEdit) {
+          const value = JSON.parse(saved);
+          setTitle(value.title ?? "");
+          setContent(value.content ?? "");
+          setMood(value.mood ?? "😊");
+          setCoverEmoji(value.coverEmoji ?? "📔");
+          setTags(value.tags ?? "");
+          setExcerpt(value.excerpt ?? "");
+          setDate(value.date ?? "");
+          setDraft(value.draft ?? true);
+          setStatus({ ok: true, text: "กู้คืนฉบับร่างที่บันทึกอัตโนมัติแล้ว" });
+        }
+      } catch {
+        localStorage.removeItem(draftKey);
       }
-    } catch {
-      localStorage.removeItem(draftKey);
-    }
-    setDraftLoaded(true);
+      setDraftLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [draftKey, initial, isEdit]);
 
   useEffect(() => {
@@ -545,8 +623,9 @@ function DiaryForm({ initial, onSaved }: {
     return () => window.clearTimeout(timer);
   }, [draftKey, draftLoaded, snapshot, title, content]);
 
-  const dirty = draftLoaded && snapshot !== initialSnapshotRef.current && Boolean(title.trim() || content.trim());
-  const scheduled = Boolean(date && Date.parse(date) > Date.now());
+  const now = useNow();
+  const dirty = draftLoaded && snapshot !== initialSnapshot && Boolean(title.trim() || content.trim());
+  const scheduled = Boolean(date && now > 0 && Date.parse(date) > now);
 
   useUnsavedWarning(dirty);
 
@@ -577,16 +656,16 @@ function DiaryForm({ initial, onSaved }: {
       localStorage.removeItem(draftKey);
       setDraft(nextDraft);
       const savedSnapshot = JSON.stringify({ title, content, mood, coverEmoji, tags, excerpt, date, draft: nextDraft });
-      initialSnapshotRef.current = savedSnapshot;
+      setInitialSnapshot(savedSnapshot);
       setStatus({
         ok: true,
         text: nextDraft ? "บันทึกเป็นฉบับร่างแล้ว" : "ส่งเผยแพร่แล้ว — ดูสถานะได้ที่หน้าภาพรวม",
       });
       if (!isEdit) {
         setTitle(""); setContent(""); setTags(""); setExcerpt(""); setDate(""); setDraft(false);
-        initialSnapshotRef.current = JSON.stringify({
+        setInitialSnapshot(JSON.stringify({
           title: "", content: "", mood, coverEmoji, tags: "", excerpt: "", date: "", draft: false,
-        });
+        }));
       }
       onSaved?.();
     } else {
@@ -752,7 +831,12 @@ function PostsList() {
     else setError(data.error ?? "โหลดข้อมูลไม่สำเร็จ");
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  const now = useNow();
 
   const filteredPosts = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -864,7 +948,7 @@ function PostsList() {
                     🔒 Draft
                   </span>
                 )}
-                {!post.draft && Date.parse(post.date) > Date.now() && (
+                {isScheduledPost(post, now) && (
                   <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "#f5ead8", color: "#a06b2c", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
                     🕒 ตั้งเวลา
                   </span>
@@ -875,7 +959,7 @@ function PostsList() {
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
-              {!post.draft && (
+              {!post.draft && !isScheduledPost(post, now) && (
                 <Link
                   href={`/posts/${post.slug}`}
                   target="_blank"
@@ -991,7 +1075,10 @@ function PhotoForm({ onUploaded }: { onUploaded?: () => void }) {
         setStatus({ ok: true, text: `กำลังอัปโหลดรูป ${index + 1}/${items.length}…` });
         const compressed = await compressImage(item.file);
         const form = new FormData();
-        form.append("file", compressed, item.file.name);
+        const uploadName = compressed.type === "image/jpeg"
+          ? `${item.file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`
+          : item.file.name;
+        form.append("file", compressed, uploadName);
         form.append("caption", item.caption);
         form.append("location", item.location);
         const res = await fetch("/api/admin/photo", { method: "POST", body: form });
@@ -1010,7 +1097,7 @@ function PhotoForm({ onUploaded }: { onUploaded?: () => void }) {
 
   return (
     <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
-      <input id="photo-file-input" type="file" accept="image/*" multiple onChange={pick} className="hidden" />
+      <input id="photo-file-input" type="file" accept="image/*,.heic,.heif" multiple onChange={pick} className="hidden" />
       <label
         htmlFor="photo-file-input"
         className="block rounded-2xl py-8 text-center cursor-pointer transition-opacity hover:opacity-80"
@@ -1101,7 +1188,10 @@ function PhotosList() {
     else setError(data.error ?? "โหลดข้อมูลไม่สำเร็จ");
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   function startEdit(photo: PhotoItem) {
     setEditingPhoto(photo);
@@ -1157,23 +1247,20 @@ function PhotosList() {
   async function deleteSelected() {
     if (selected.length === 0 || !confirm(`ลบรูปที่เลือก ${selected.length} รูปจริงๆ หรือ?`)) return;
     setBusy(true);
-    for (const filename of selected) {
-      const res = await fetch("/api/admin/photo", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setActionStatus({ ok: false, text: data.error ?? `ลบ ${filename} ไม่สำเร็จ` });
-        setBusy(false);
-        load();
-        return;
-      }
+    const deletingCount = selected.length;
+    const res = await fetch("/api/admin/photo", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filenames: selected }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setActionStatus({ ok: false, text: data.error ?? "ลบรูปที่เลือกไม่สำเร็จ" });
+      return;
     }
     setSelected([]);
-    setBusy(false);
-    setActionStatus({ ok: true, text: `ลบ ${selected.length} รูปแล้ว` });
+    setActionStatus({ ok: true, text: `ลบ ${deletingCount} รูปแล้ว` });
     load();
   }
 
@@ -1325,7 +1412,10 @@ export function LegacyMusicManager() {
     else setStatus({ ok: false, text: data.error ?? "โหลดข้อมูลไม่สำเร็จ" });
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   async function addYouTube(e: React.FormEvent) {
     e.preventDefault();
