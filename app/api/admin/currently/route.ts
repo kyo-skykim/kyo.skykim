@@ -1,6 +1,6 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { commitFiles, isConfigured, readFile } from "@/lib/admin/github";
-import { rejectCrossOrigin } from "@/lib/admin/security";
+import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 
 const CURRENTLY_PATH = "content/currently.json";
 
@@ -28,6 +28,8 @@ export async function GET() {
 export async function PUT(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 64 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   if (!isConfigured()) return Response.json({ error: "ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Vercel" }, { status: 500 });
   const body = await request.json().catch(() => null);

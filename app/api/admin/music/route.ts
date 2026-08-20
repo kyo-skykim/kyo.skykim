@@ -1,6 +1,6 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, deleteFile, readFile } from "@/lib/admin/github";
-import { rejectCrossOrigin } from "@/lib/admin/security";
+import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 import { hasFileSignature } from "@/lib/admin/file-validation";
 
 const MUSIC_PATH = "content/music.json";
@@ -110,6 +110,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 5 * 1024 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) return notLoggedIn();
   if (!isConfigured()) return notConfigured();
 
@@ -192,6 +194,8 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 8 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) return notLoggedIn();
   if (!isConfigured()) return notConfigured();
 
@@ -225,6 +229,8 @@ export async function DELETE(request: Request) {
 export async function PUT(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 256 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) return notLoggedIn();
   if (!isConfigured()) return notConfigured();
 

@@ -6,7 +6,7 @@ import {
   readFileAtRef,
   readFileBase64AtRef,
 } from "@/lib/admin/github";
-import { rejectCrossOrigin } from "@/lib/admin/security";
+import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 
 export const runtime = "nodejs";
 
@@ -35,6 +35,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 8 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }

@@ -2,7 +2,7 @@ import { extractText, getDocumentProxy, renderPageAsImage } from "unpdf";
 import { mkdir } from "node:fs/promises";
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, readFile } from "@/lib/admin/github";
-import { rejectCrossOrigin } from "@/lib/admin/security";
+import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 import { hasFileSignature } from "@/lib/admin/file-validation";
 import { parseCvText } from "@/lib/admin/cv-parser";
 import type { CvAboutData, CvPreview } from "@/lib/admin/cv-types";
@@ -108,6 +108,8 @@ async function extractCvText(buffer: Uint8Array): Promise<{
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 6 * 1024 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }

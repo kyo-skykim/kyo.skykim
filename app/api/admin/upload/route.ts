@@ -1,6 +1,6 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles } from "@/lib/admin/github";
-import { rejectCrossOrigin } from "@/lib/admin/security";
+import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 import { detectImageExtension, hasFileSignature } from "@/lib/admin/file-validation";
 
 // อัพโหลดไฟล์แนบ (PDF / รูป) เข้า public/ แล้วคืน path สำหรับใส่ในช่องข้อมูล
@@ -20,6 +20,8 @@ function sanitizeName(name: string): string {
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 5 * 1024 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }

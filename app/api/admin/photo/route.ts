@@ -1,6 +1,6 @@
 import { isLoggedIn } from "@/lib/admin/auth";
 import { isConfigured, commitFiles, deleteFile, readFile, listFiles } from "@/lib/admin/github";
-import { rejectCrossOrigin } from "@/lib/admin/security";
+import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 import { detectImageExtension, hasFileSignature } from "@/lib/admin/file-validation";
 
 function bangkokToday(): string {
@@ -74,6 +74,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 5 * 1024 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -135,6 +137,8 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 64 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
@@ -188,6 +192,8 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const sizeError = rejectOversizedRequest(request, 8 * 1024);
+  if (sizeError) return sizeError;
   if (!(await isLoggedIn())) {
     return Response.json({ error: "กรุณา login ก่อน" }, { status: 401 });
   }
