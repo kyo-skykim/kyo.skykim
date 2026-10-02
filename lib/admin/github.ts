@@ -38,12 +38,22 @@ export type CommitFile =
       delete: true;
     };
 
-export async function commitFiles(files: CommitFile[], message: string): Promise<string> {
+export class RepositoryChangedError extends Error {
+  constructor() { super("ข้อมูลเปลี่ยนระหว่างบันทึก กรุณาลองใหม่"); }
+}
+
+export async function getHeadSha(): Promise<string> {
+  const ref = await gh(`/repos/${repo()}/git/ref/heads/${branch()}`);
+  return ref.object.sha;
+}
+
+export async function commitFiles(files: CommitFile[], message: string, expectedHead?: string): Promise<string> {
   const r = repo();
   const b = branch();
 
   const ref = await gh(`/repos/${r}/git/ref/heads/${b}`);
   const headSha: string = ref.object.sha;
+  if (expectedHead && expectedHead !== headSha) throw new RepositoryChangedError();
   const headCommit = await gh(`/repos/${r}/git/commits/${headSha}`);
 
   const treeEntries: Array<{
@@ -74,10 +84,19 @@ export async function commitFiles(files: CommitFile[], message: string): Promise
     body: JSON.stringify({ message, tree: tree.sha, parents: [headSha] }),
   });
 
-  await gh(`/repos/${r}/git/refs/heads/${b}`, {
-    method: "PATCH",
-    body: JSON.stringify({ sha: commit.sha }),
-  });
+  try {
+    await gh(`/repos/${r}/git/refs/heads/${b}`, {
+      method: "PATCH",
+      body: JSON.stringify({ sha: commit.sha, force: false }),
+    });
+  } catch (error) {
+    if (expectedHead) {
+      const latest = await getHeadSha();
+      if (latest === commit.sha) return commit.sha;
+      if (latest !== headSha) throw new RepositoryChangedError();
+    }
+    throw error;
+  }
 
   return commit.sha;
 }
@@ -111,7 +130,7 @@ export async function readFile(path: string): Promise<string | null> {
   return res.text();
 }
 
-export async function readFileAtRef(path: string, ref: string): Promise<string | null> {
+export async function readFileAtRef(path: string, ref: string, strict = false): Promise<string | null> {
   const res = await fetch(
     `${API}/repos/${repo()}/contents/${encodeURI(path)}?ref=${encodeURIComponent(ref)}`,
     {
@@ -122,7 +141,10 @@ export async function readFileAtRef(path: string, ref: string): Promise<string |
       cache: "no-store",
     }
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    if (strict && res.status !== 404) throw new Error(`อ่านข้อมูลจาก GitHub ไม่สำเร็จ (${res.status})`);
+    return null;
+  }
   return res.text();
 }
 

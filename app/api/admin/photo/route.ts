@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { uploadPhoto, PhotoUploadConflict, type GalleryMeta } from "@/lib/admin/photo-upload";
 import { isLoggedIn } from "@/lib/admin/auth";
-import { isConfigured, commitFiles, readFile, listFiles, type CommitFile } from "@/lib/admin/github";
+import { isConfigured, commitFiles, getHeadSha, readFileAtRef, listFiles, type CommitFile } from "@/lib/admin/github";
 import { rejectCrossOrigin, rejectOversizedRequest } from "@/lib/admin/security";
 import { detectImageExtension, hasFileSignature } from "@/lib/admin/file-validation";
 
@@ -7,30 +9,11 @@ function bangkokToday(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
 }
 
-function makeFilename(originalName: string, detectedExtension?: string): string {
-  const ext = detectedExtension ?? /\.(png|webp|gif|avif)$/i.exec(originalName)?.[1]?.toLowerCase() ?? "jpg";
-  const stamp = new Date()
-    .toLocaleString("sv-SE", { timeZone: "Asia/Bangkok" })
-    .replace(/[^0-9]/g, "")
-    .slice(0, 14);
-  const rand = Math.random().toString(36).slice(2, 6);
-  return `photo-${stamp}-${rand}.${ext}`;
-}
-
-type GalleryMeta = Record<string, {
-  caption?: string;
-  date?: string;
-  location?: string;
-  featured?: boolean;
-}>;
-
-async function readGalleryMeta(): Promise<GalleryMeta> {
-  const metaRaw = await readFile("content/gallery.json");
-  try {
-    return metaRaw ? (JSON.parse(metaRaw) as GalleryMeta) : {};
-  } catch {
-    return {};
-  }
+async function readGalleryMeta(head?: string): Promise<GalleryMeta> {
+  const raw = await readFileAtRef("content/gallery.json", head ?? await getHeadSha(), true);
+  const meta = raw ? JSON.parse(raw) : {};
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) throw new Error("ข้อมูลคลังรูปไม่ถูกต้อง");
+  return meta;
 }
 
 // GET — list all photos
@@ -107,30 +90,16 @@ export async function POST(request: Request) {
   const location = String(form.get("location") ?? "").trim();
   const date = String(form.get("date") ?? "").trim() || bangkokToday();
 
-  const filename = makeFilename(file.name, detectedExtension);
-  const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-
-  // อ่าน gallery.json ปัจจุบันจาก GitHub แล้วเพิ่ม entry ใหม่
-  const meta = await readGalleryMeta();
-  meta[filename] = {
-    ...(caption ? { caption } : {}),
-    date,
-    ...(location ? { location } : {}),
-  };
-
-  try {
-    await commitFiles(
-      [
-        { path: `public/gallery/${filename}`, content: base64, encoding: "base64" },
-        { path: "content/gallery.json", content: JSON.stringify(meta, null, 2) + "\n", encoding: "utf-8" },
-      ],
-      `New gallery photo: ${caption || filename}`
-    );
-  } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : "commit ไม่สำเร็จ" }, { status: 502 });
+  const id = String(form.get("uploadId") ?? randomUUID());
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id)) {
+    return Response.json({ error: "รหัสอัปโหลดไม่ถูกต้อง" }, { status: 400 });
   }
-
-  return Response.json({ ok: true, filename });
+  try {
+    const result = await uploadPhoto({ id: id.toLowerCase(), extension: detectedExtension, bytes: Buffer.from(await file.arrayBuffer()), caption, location, date });
+    return Response.json({ ok: true, ...result });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "บันทึกรูปไม่สำเร็จ" }, { status: error instanceof PhotoUploadConflict ? 409 : 502 });
+  }
 }
 
 // PATCH — update photo metadata
@@ -163,23 +132,25 @@ export async function PATCH(request: Request) {
   const date = String(body?.date ?? "").trim() || bangkokToday();
   const featured = body?.featured === true;
 
-  const meta = await readGalleryMeta();
-  if (featured) {
-    for (const key of Object.keys(meta)) {
-      if (key !== filename && meta[key]?.featured) meta[key] = { ...meta[key], featured: false };
-    }
-  }
-  meta[filename] = {
-    ...(caption ? { caption } : {}),
-    date,
-    ...(location ? { location } : {}),
-    ...(featured ? { featured: true } : {}),
-  };
-
   try {
+    const head = await getHeadSha();
+    const meta = await readGalleryMeta(head);
+    if (featured) {
+      for (const key of Object.keys(meta)) {
+        if (key !== filename && meta[key]?.featured) meta[key] = { ...meta[key], featured: false };
+      }
+    }
+    meta[filename] = {
+      ...meta[filename],
+      caption,
+      date,
+      location,
+      featured,
+    };
+
     await commitFiles(
       [{ path: "content/gallery.json", content: JSON.stringify(meta, null, 2) + "\n", encoding: "utf-8" }],
-      `Update photo metadata: ${filename}`
+      `Update photo metadata: ${filename}`, head
     );
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "commit ไม่สำเร็จ" }, { status: 502 });
@@ -224,7 +195,8 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const [meta, storedFiles] = await Promise.all([readGalleryMeta(), listFiles("public/gallery")]);
+    const head = await getHeadSha();
+    const [meta, storedFiles] = await Promise.all([readGalleryMeta(head), listFiles("public/gallery")]);
     for (const filename of filenames) delete meta[filename];
 
     const stored = new Set(storedFiles);
@@ -239,7 +211,7 @@ export async function DELETE(request: Request) {
 
     await commitFiles(changes, filenames.length === 1
       ? `Delete gallery photo: ${filenames[0]}`
-      : `Delete ${filenames.length} gallery photos`);
+      : `Delete ${filenames.length} gallery photos`, head);
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "ลบรูปไม่สำเร็จ" }, { status: 502 });
   }

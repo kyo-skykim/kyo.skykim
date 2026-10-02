@@ -2,11 +2,17 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import PhotoForm from "@/components/admin/PhotoUploader";
 import MusicManagerStudio from "@/components/admin/MusicManagerStudio";
 import type { CvAboutData, CvHistoryItem, CvPreview } from "@/lib/admin/cv-types";
 import type { CurrentlyData, CurrentlyItem } from "@/lib/currently";
+import { adminFetch, SESSION_EXPIRED_EVENT } from "@/lib/admin/client";
+import { adminTabs, useAdminNavigation, type AdminTab as Tab } from "@/components/admin/useAdminNavigation";
+import { confirmAdminNavigation, useUnsavedChanges as useUnsavedWarning } from "@/components/admin/useUnsavedChanges";
+import { useLocalDraft } from "@/components/admin/useLocalDraft";
+import DraftNotice from "@/components/admin/DraftNotice";
+import AdminDialog from "@/components/admin/AdminDialog";
 
-type Tab = "dashboard" | "new-post" | "posts" | "gallery" | "music" | "currently" | "cv" | "about";
 type AboutSection = "profile" | "experience" | "research" | "education" | "skills" | "certifications" | "languages";
 
 const card: React.CSSProperties = {
@@ -26,97 +32,54 @@ const labelStyle: React.CSSProperties = {
   color: "var(--ink-light)",
 };
 
-async function loadImageSource(file: File): Promise<{
-  source: CanvasImageSource;
-  width: number;
-  height: number;
-  cleanup: () => void;
-}> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    return {
-      source: bitmap,
-      width: bitmap.width,
-      height: bitmap.height,
-      cleanup: () => bitmap.close(),
-    };
-  } catch {
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.src = url;
-    try {
-      await image.decode();
-      return {
-        source: image,
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-        cleanup: () => URL.revokeObjectURL(url),
-      };
-    } catch {
-      URL.revokeObjectURL(url);
-      throw new Error("เบราว์เซอร์นี้อ่านรูปไม่ได้ กรุณาแปลงรูปเป็น JPG แล้วลองอีกครั้ง");
-    }
-  }
-}
-
-async function compressImage(file: File): Promise<Blob> {
-  const heic = /\.(?:heic|heif)$/i.test(file.name) || /^image\/hei[cf]$/i.test(file.type);
-  const image = await loadImageSource(file);
-  const maxDim = 1600;
-  const scale = Math.min(1, maxDim / Math.max(image.width, image.height));
-  if (!heic && scale === 1 && file.size < 800 * 1024) {
-    image.cleanup();
-    return file;
-  }
-
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(image.width * scale);
-  canvas.height = Math.round(image.height * scale);
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(image.source, 0, 0, canvas.width, canvas.height);
-  image.cleanup();
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("compress failed"))),
-      "image/jpeg",
-      0.85
-    );
-  });
-}
-
 export default function AdminPage() {
   const [checking, setChecking] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const { tab, navigate } = useAdminNavigation();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [shellError, setShellError] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/login")
+    const expired = () => { setMoreOpen(false); setSessionExpired(true); };
+    const updateNetwork = () => setOffline(!navigator.onLine);
+    const timer = window.setTimeout(updateNetwork, 0);
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired);
+    window.addEventListener("online", updateNetwork);
+    window.addEventListener("offline", updateNetwork);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener(SESSION_EXPIRED_EVENT, expired);
+      window.removeEventListener("online", updateNetwork);
+      window.removeEventListener("offline", updateNetwork);
+    };
+  }, []);
+
+  useEffect(() => {
+    adminFetch("/api/admin/login")
       .then((r) => r.json())
       .then((d) => setLoggedIn(Boolean(d.loggedIn)))
       .finally(() => setChecking(false));
   }, []);
 
-  const tabs: [Tab, string, string][] = [
-    ["dashboard", "⌂", "ภาพรวม"],
-    ["new-post", "＋", "เขียน"],
-    ["posts", "✎", "โพสต์"],
-    ["gallery", "▧", "รูปภาพ"],
-    ["music", "♫", "เพลง"],
-    ["currently", "◌", "Currently"],
-    ["about", "◯", "เกี่ยวกับ"],
-    ["cv", "▤", "CV"],
-  ];
+  const menuButton = ([value, icon, label]: typeof adminTabs[number]) => (
+    <button key={value} type="button" className="admin-menu-button" aria-current={tab === value ? "page" : undefined}
+      onClick={() => { if (value === tab || navigate(value)) setMoreOpen(false); }}>
+      <span aria-hidden="true">{icon}</span><span>{label}</span>
+    </button>
+  );
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--cream)" }}>
-      <nav className="border-b py-3 px-4 sm:px-6 sticky top-0 z-40" style={{ borderColor: "var(--border)", backgroundColor: "var(--warm-white)" }}>
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+    <div className="admin-app" style={{ backgroundColor: "var(--cream)" }}>
+      <nav className="admin-header border-b py-3 px-4 sm:px-6" style={{ borderColor: "var(--border)", backgroundColor: "var(--warm-white)" }}>
+        <div className="admin-header-inner">
           <div>
             <p className="text-xs uppercase tracking-widest" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)" }}>
               Creator studio
             </p>
-            <Link href="/" style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontWeight: 500, color: "var(--ink)", fontSize: "1.1rem" }}>
+            <Link href="/" target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-lora, Georgia, serif)", fontWeight: 500, color: "var(--ink)", fontSize: "1.1rem" }}>
               My Diary
             </Link>
           </div>
@@ -131,9 +94,14 @@ export default function AdminPage() {
                 เปิดเว็บไซต์ ↗
               </Link>
               <button
+                disabled={loggingOut}
                 onClick={async () => {
-                  await fetch("/api/admin/login", { method: "DELETE" });
-                  setLoggedIn(false);
+                  if (!confirmAdminNavigation()) return;
+                  setLoggingOut(true);
+                  const response = await adminFetch("/api/admin/login", { method: "DELETE" });
+                  setLoggingOut(false);
+                  if (response.ok) setLoggedIn(false);
+                  else setShellError((await response.json()).error ?? "ออกจากระบบไม่สำเร็จ");
                 }}
                 className="text-xs transition-opacity hover:opacity-60"
                 style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
@@ -145,7 +113,9 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      {offline && <p className="admin-network-status" role="status">ออฟไลน์อยู่ · แก้ข้อความต่อได้ และบันทึกเมื่อเชื่อมต่ออีกครั้ง</p>}
+      {shellError && <p className="admin-network-status" role="alert">{shellError}</p>}
+      <main className={`admin-workspace ${loggedIn ? "is-authenticated" : ""}`}>
         {checking ? (
           <p style={{ color: "var(--ink-light)", fontStyle: "italic", fontFamily: "var(--font-lora, Georgia, serif)" }}>
             กำลังตรวจสอบ...
@@ -154,28 +124,9 @@ export default function AdminPage() {
           <LoginForm onSuccess={() => setLoggedIn(true)} />
         ) : (
           <>
-            <div
-              className="flex gap-1 mb-8 overflow-x-auto rounded-2xl p-1.5"
-              style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}
-              aria-label="เมนูจัดการเว็บไซต์"
-            >
-              {tabs.map(([t, icon, label]) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className="min-w-[72px] flex-1 text-xs sm:text-sm px-3 py-2.5 rounded-xl transition-all hover:opacity-80 whitespace-nowrap"
-                  style={{
-                    fontFamily: "var(--font-inter, Inter, sans-serif)",
-                    backgroundColor: tab === t ? "var(--accent)" : "var(--accent-light)",
-                    color: tab === t ? "#fff" : "var(--accent)",
-                  }}
-                >
-                  <span className="block text-base leading-none mb-1">{icon}</span>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {tab === "dashboard" && <Dashboard onNavigate={setTab} />}
+            <nav className="admin-desktop-nav" aria-label="เมนูจัดการเว็บไซต์">{adminTabs.map(menuButton)}</nav>
+            <div className="admin-content" key={tab}>
+            {tab === "dashboard" && <Dashboard onNavigate={navigate} />}
             {tab === "new-post" && (
               <AdminSection title="เขียนไดอารี่" description="ระบบบันทึกร่างให้อัตโนมัติบนเครื่องนี้">
                 <DiaryForm />
@@ -211,9 +162,23 @@ export default function AdminPage() {
                 <CvForm />
               </AdminSection>
             )}
+            </div>
           </>
         )}
       </main>
+      {loggedIn && <nav className="admin-mobile-nav" aria-label="เมนูหลัก">
+        {adminTabs.slice(0, 4).map(menuButton)}
+        <button type="button" className="admin-menu-button" aria-label="เมนูเพิ่มเติม" aria-expanded={moreOpen}
+          aria-current={adminTabs.slice(4).some(([value]) => value === tab) ? "page" : undefined}
+          onClick={() => setMoreOpen(true)}><span aria-hidden="true">•••</span><span>เพิ่มเติม</span></button>
+      </nav>}
+      {moreOpen && <AdminDialog title="เมนูเพิ่มเติม" onClose={() => setMoreOpen(false)}>
+        <div className="grid grid-cols-2 gap-2">{adminTabs.slice(4).map(menuButton)}</div>
+      </AdminDialog>}
+      {loggedIn && sessionExpired && <AdminDialog title="เข้าสู่ระบบอีกครั้ง">
+        <p className="text-sm mb-4">เซสชันหมดอายุ ข้อมูลที่กำลังแก้ยังอยู่ เข้าสู่ระบบแล้วกดบันทึกอีกครั้งได้เลย</p>
+        <LoginForm onSuccess={() => setSessionExpired(false)} />
+      </AdminDialog>}
     </div>
   );
 }
@@ -243,7 +208,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     e.preventDefault();
     setBusy(true);
     setError("");
-    const res = await fetch("/api/admin/login", {
+    const res = await adminFetch("/api/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
@@ -255,11 +220,12 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
+    <form onSubmit={submit} aria-busy={busy} className="rounded-2xl p-6 space-y-4" style={card}>
       <label className="block text-sm" style={labelStyle}>
         รหัสผ่าน
         <input
           type="password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mt-2 w-full rounded-xl px-4 py-2.5 outline-none"
@@ -267,7 +233,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           autoFocus
         />
       </label>
-      {error && <p className="text-sm" style={{ color: "#b3553a", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{error}</p>}
+      {error && <p role="alert" className="text-sm" style={{ color: "#b3553a", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>{error}</p>}
       <button
         type="submit"
         disabled={busy || !password}
@@ -283,7 +249,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 function StatusMessage({ status }: { status: { ok: boolean; text: string } | null }) {
   if (!status) return null;
   return (
-    <p
+    <p role={status.ok ? "status" : "alert"} aria-live="polite"
       className="text-sm rounded-xl px-4 py-3"
       style={{
         fontFamily: "var(--font-inter, Inter, sans-serif)",
@@ -294,17 +260,6 @@ function StatusMessage({ status }: { status: { ok: boolean; text: string } | nul
       {status.text}
     </p>
   );
-}
-
-function useUnsavedWarning(active: boolean) {
-  useEffect(() => {
-    function warn(event: BeforeUnloadEvent) {
-      if (!active) return;
-      event.preventDefault();
-    }
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [active]);
 }
 
 function useNow(refreshMs = 60_000) {
@@ -356,10 +311,10 @@ function Dashboard({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
     setLoading(true);
     setError("");
     const [postsRes, photosRes, musicRes, statusRes] = await Promise.all([
-      fetch("/api/admin/posts"),
-      fetch("/api/admin/photo"),
-      fetch("/api/admin/music"),
-      fetch("/api/admin/status"),
+      adminFetch("/api/admin/posts"),
+      adminFetch("/api/admin/photo"),
+      adminFetch("/api/admin/music"),
+      adminFetch("/api/admin/status"),
     ]);
     const [posts, photos, music, publish] = await Promise.all([
       postsRes.json().catch(() => ({})),
@@ -560,7 +515,6 @@ function DiaryForm({ initial, onSaved }: {
   const [date, setDate] = useState(toDatetimeLocal(initial?.date ?? ""));
   const [draft, setDraft] = useState(initial?.draft ?? false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [draftLoaded, setDraftLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [initialSnapshot, setInitialSnapshot] = useState(() => JSON.stringify({
@@ -574,60 +528,15 @@ function DiaryForm({ initial, onSaved }: {
     draft: initial?.draft ?? false,
   }));
 
-  const snapshot = useMemo(() => JSON.stringify({
-    title, content, mood, coverEmoji, tags, excerpt, date, draft,
-  }), [title, content, mood, coverEmoji, tags, excerpt, date, draft]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const nextInitialSnapshot = JSON.stringify({
-        title: initial?.title ?? "",
-        content: initial?.content ?? "",
-        mood: initial?.mood ?? "😊",
-        coverEmoji: initial?.coverEmoji ?? "📔",
-        tags: initial?.tags?.join(", ") ?? "",
-        excerpt: initial?.excerpt ?? "",
-        date: toDatetimeLocal(initial?.date ?? ""),
-        draft: initial?.draft ?? false,
-      });
-      setInitialSnapshot(nextInitialSnapshot);
-
-      try {
-        const saved = localStorage.getItem(draftKey);
-        if (saved && !isEdit) {
-          const value = JSON.parse(saved);
-          setTitle(value.title ?? "");
-          setContent(value.content ?? "");
-          setMood(value.mood ?? "😊");
-          setCoverEmoji(value.coverEmoji ?? "📔");
-          setTags(value.tags ?? "");
-          setExcerpt(value.excerpt ?? "");
-          setDate(value.date ?? "");
-          setDraft(value.draft ?? true);
-          setStatus({ ok: true, text: "กู้คืนฉบับร่างที่บันทึกอัตโนมัติแล้ว" });
-        }
-      } catch {
-        localStorage.removeItem(draftKey);
-      }
-      setDraftLoaded(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [draftKey, initial, isEdit]);
-
-  useEffect(() => {
-    if (!draftLoaded) return;
-    const timer = window.setTimeout(() => {
-      if (title.trim() || content.trim()) localStorage.setItem(draftKey, snapshot);
-      else localStorage.removeItem(draftKey);
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [draftKey, draftLoaded, snapshot, title, content]);
-
+  const values = { title, content, mood, coverEmoji, tags, excerpt, date, draft };
+  const restoreDiary = useCallback((value: typeof values) => {
+    setTitle(value.title); setContent(value.content); setMood(value.mood); setCoverEmoji(value.coverEmoji);
+    setTags(value.tags); setExcerpt(value.excerpt); setDate(value.date); setDraft(value.draft);
+  }, []);
+  const localDraft = useLocalDraft(draftKey, values, JSON.parse(initialSnapshot) as typeof values, restoreDiary);
   const now = useNow();
-  const dirty = draftLoaded && snapshot !== initialSnapshot && Boolean(title.trim() || content.trim());
   const scheduled = Boolean(date && now > 0 && Date.parse(date) > now);
-
-  useUnsavedWarning(dirty);
+  useUnsavedWarning(false, busy);
 
   async function savePost(nextDraft: boolean) {
     setBusy(true);
@@ -645,7 +554,7 @@ function DiaryForm({ initial, onSaved }: {
       ...(isEdit ? { slug: initial!.slug } : {}),
     };
 
-    const res = await fetch(isEdit ? "/api/admin/posts" : "/api/admin/diary", {
+    const res = await adminFetch(isEdit ? "/api/admin/posts" : "/api/admin/diary", {
       method: isEdit ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -653,7 +562,7 @@ function DiaryForm({ initial, onSaved }: {
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (res.ok) {
-      localStorage.removeItem(draftKey);
+      localDraft.clear();
       setDraft(nextDraft);
       const savedSnapshot = JSON.stringify({ title, content, mood, coverEmoji, tags, excerpt, date, draft: nextDraft });
       setInitialSnapshot(savedSnapshot);
@@ -680,10 +589,9 @@ function DiaryForm({ initial, onSaved }: {
         className="rounded-2xl p-5 sm:p-6 space-y-4"
         style={card}
       >
+        <fieldset disabled={busy || !localDraft.ready} className="space-y-4 min-w-0">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs" style={{ color: dirty ? "var(--accent)" : "var(--ink-light)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
-            {dirty ? "● บันทึกร่างอัตโนมัติแล้ว" : "✓ ไม่มีข้อมูลค้าง"}
-          </span>
+          <DraftNotice draft={localDraft} />
           <button
             type="button"
             onClick={() => setPreviewOpen((open) => !open)}
@@ -725,20 +633,21 @@ function DiaryForm({ initial, onSaved }: {
           <span className="block text-xs mt-1" style={{ color: "var(--ink-light)" }}>เว้นว่างเพื่อใช้เวลาปัจจุบัน</span>
         </label>
         <StatusMessage status={status} />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="admin-actions grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => savePost(true)}
-            disabled={busy || !title.trim() || !content.trim()}
+            disabled={busy || localDraft.recovery || !title.trim() || !content.trim()}
             className="py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40"
             style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
           >
             {busy ? "กำลังบันทึก..." : "เก็บเป็นฉบับร่าง"}
           </button>
-          <button type="submit" disabled={busy || !title.trim() || !content.trim()} className="py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+          <button type="submit" disabled={busy || localDraft.recovery || !title.trim() || !content.trim()} className="py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
             {busy ? "กำลังส่ง..." : scheduled ? "ตั้งเวลาเผยแพร่" : isEdit && !draft ? "อัปเดตโพสต์" : "เผยแพร่"}
           </button>
         </div>
+      </fieldset>
       </form>
 
       <div className={`${previewOpen ? "block" : "hidden"} lg:block lg:sticky lg:top-28`}>
@@ -824,7 +733,7 @@ function PostsList() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/admin/posts");
+    const res = await adminFetch("/api/admin/posts");
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (res.ok) setPosts(data.posts ?? []);
@@ -853,15 +762,16 @@ function PostsList() {
 
   async function openEdit(post: PostItem) {
     setLoadingSlug(post.slug);
-    const res = await fetch(`/api/admin/posts/${post.slug}`);
+    const res = await adminFetch(`/api/admin/posts/${post.slug}`);
     const data = await res.json().catch(() => ({}));
     setLoadingSlug(null);
     if (res.ok) setEditingPost(data);
+    else setError(data.error ?? "โหลดโพสต์ไม่สำเร็จ");
   }
 
   async function deletePost(slug: string, title: string) {
     if (!confirm(`ลบโพสต์ "${title}" จริงๆ หรือ?`)) return;
-    const res = await fetch("/api/admin/posts", {
+    const res = await adminFetch("/api/admin/posts", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slug }),
@@ -879,7 +789,7 @@ function PostsList() {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => { setEditingPost(null); load(); }}
+          onClick={() => { if (confirmAdminNavigation()) { setEditingPost(null); load(); } }}
           className="text-sm px-4 py-2 rounded-full transition-opacity hover:opacity-80"
           style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", backgroundColor: "var(--accent-light)", color: "var(--accent)" }}
         >
@@ -992,21 +902,13 @@ function PostsList() {
   );
 }
 
-interface PhotoDraft {
-  id: string;
-  file: File;
-  preview: string;
-  caption: string;
-  location: string;
-}
-
 function GalleryWorkspace() {
   const [version, setVersion] = useState(0);
   const [uploaderOpen, setUploaderOpen] = useState(true);
   return (
     <div className="space-y-5">
       <button
-        onClick={() => setUploaderOpen((open) => !open)}
+        onClick={() => { if (!uploaderOpen || confirmAdminNavigation()) setUploaderOpen((open) => !open); }}
         className="w-full rounded-2xl px-5 py-4 flex items-center justify-between text-left"
         style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", border: "1px solid var(--border)" }}
       >
@@ -1020,140 +922,11 @@ function GalleryWorkspace() {
         <PhotoForm
           onUploaded={() => {
             setVersion((value) => value + 1);
-            setUploaderOpen(false);
           }}
         />
       )}
       <PhotosList key={version} />
     </div>
-  );
-}
-
-function PhotoForm({ onUploaded }: { onUploaded?: () => void }) {
-  const [items, setItems] = useState<PhotoDraft[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  useUnsavedWarning(items.length > 0);
-
-  function pick(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    if (files.length === 0) return;
-    setStatus(null);
-    setItems((current) => [
-      ...current,
-      ...files.map((file) => ({
-        id: crypto.randomUUID(),
-        file,
-        preview: URL.createObjectURL(file),
-        caption: file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "),
-        location: "",
-      })),
-    ]);
-  }
-
-  function updateItem(id: string, patch: Partial<PhotoDraft>) {
-    setItems((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
-  }
-
-  function removeItem(id: string) {
-    setItems((current) => {
-      const target = current.find((item) => item.id === id);
-      if (target) URL.revokeObjectURL(target.preview);
-      return current.filter((item) => item.id !== id);
-    });
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (items.length === 0) return;
-    setBusy(true);
-    setStatus(null);
-    try {
-      for (let index = 0; index < items.length; index += 1) {
-        const item = items[index];
-        setStatus({ ok: true, text: `กำลังอัปโหลดรูป ${index + 1}/${items.length}…` });
-        const compressed = await compressImage(item.file);
-        const form = new FormData();
-        const uploadName = compressed.type === "image/jpeg"
-          ? `${item.file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`
-          : item.file.name;
-        form.append("file", compressed, uploadName);
-        form.append("caption", item.caption);
-        form.append("location", item.location);
-        const res = await fetch("/api/admin/photo", { method: "POST", body: form });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error ?? `อัปโหลด ${item.file.name} ไม่สำเร็จ`);
-      }
-      items.forEach((item) => URL.revokeObjectURL(item.preview));
-      setItems([]);
-      setStatus({ ok: true, text: `อัปโหลดครบ ${items.length} รูปแล้ว` });
-      onUploaded?.();
-    } catch (error) {
-      setStatus({ ok: false, text: error instanceof Error ? error.message : "ประมวลผลรูปไม่สำเร็จ ลองรูปอื่นดูนะ" });
-    }
-    setBusy(false);
-  }
-
-  return (
-    <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
-      <input id="photo-file-input" type="file" accept="image/*,.heic,.heif" multiple onChange={pick} className="hidden" />
-      <label
-        htmlFor="photo-file-input"
-        className="block rounded-2xl py-8 text-center cursor-pointer transition-opacity hover:opacity-80"
-        style={{ border: "2px dashed var(--accent)", backgroundColor: "var(--accent-light)" }}
-      >
-        <span className="block text-3xl mb-2">📷</span>
-        <span className="block text-sm" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--accent)", fontWeight: 500 }}>
-          {items.length > 0 ? "เลือกรูปเพิ่ม" : "เลือกรูปจากอัลบั้ม"}
-        </span>
-        <span className="block text-xs mt-1" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
-          เลือกพร้อมกันได้หลายรูป ระบบจะบีบอัดให้อัตโนมัติ
-        </span>
-      </label>
-
-      {items.length > 0 && (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {items.map((item) => (
-            <div key={item.id} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", backgroundColor: "var(--cream)" }}>
-              <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.preview} alt="" className="w-full aspect-[4/3] object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeItem(item.id)}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full text-sm"
-                  style={{ backgroundColor: "rgba(44,36,22,0.78)", color: "#fff" }}
-                  aria-label={`เอารูป ${item.file.name} ออก`}
-                >
-                  ×
-                </button>
-              </div>
-              <div className="p-3 space-y-2">
-                <input
-                  value={item.caption}
-                  onChange={(event) => updateItem(item.id, { caption: event.target.value })}
-                  placeholder="คำบรรยาย"
-                  className="w-full rounded-lg px-3 py-2 outline-none text-sm"
-                  style={inputStyle}
-                />
-                <input
-                  value={item.location}
-                  onChange={(event) => updateItem(item.id, { location: event.target.value })}
-                  placeholder="สถานที่ (ไม่บังคับ)"
-                  className="w-full rounded-lg px-3 py-2 outline-none text-sm"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      <StatusMessage status={status} />
-      <button type="submit" disabled={busy || items.length === 0} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
-        {busy ? "กำลังอัปโหลด..." : `อัปโหลด ${items.length || ""} รูป`}
-      </button>
-    </form>
   );
 }
 
@@ -1181,7 +954,7 @@ function PhotosList() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/admin/photo");
+    const res = await adminFetch("/api/admin/photo");
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (res.ok) setPhotos(data.photos ?? []);
@@ -1193,7 +966,10 @@ function PhotosList() {
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  useUnsavedWarning(Boolean(editingPhoto && (editCaption !== editingPhoto.caption || editLocation !== editingPhoto.location || editDate !== editingPhoto.date || editFeatured !== editingPhoto.featured)), busy);
+
   function startEdit(photo: PhotoItem) {
+    if (editingPhoto && !confirmAdminNavigation()) return;
     setEditingPhoto(photo);
     setEditCaption(photo.caption);
     setEditLocation(photo.location);
@@ -1206,7 +982,7 @@ function PhotosList() {
     e.preventDefault();
     if (!editingPhoto) return;
     setBusy(true);
-    const res = await fetch("/api/admin/photo", {
+    const res = await adminFetch("/api/admin/photo", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1230,7 +1006,7 @@ function PhotosList() {
 
   async function deletePhoto(filename: string) {
     if (!confirm(`ลบรูป "${filename}" จริงๆ หรือ?`)) return;
-    const res = await fetch("/api/admin/photo", {
+    const res = await adminFetch("/api/admin/photo", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filename }),
@@ -1248,7 +1024,7 @@ function PhotosList() {
     if (selected.length === 0 || !confirm(`ลบรูปที่เลือก ${selected.length} รูปจริงๆ หรือ?`)) return;
     setBusy(true);
     const deletingCount = selected.length;
-    const res = await fetch("/api/admin/photo", {
+    const res = await adminFetch("/api/admin/photo", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filenames: selected }),
@@ -1307,7 +1083,7 @@ function PhotosList() {
             <button type="submit" disabled={busy} className="text-xs px-4 py-2 rounded-full transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
               {busy ? "..." : "บันทึก"}
             </button>
-            <button type="button" onClick={() => setEditingPhoto(null)} className="text-xs px-4 py-2 rounded-full transition-opacity hover:opacity-80" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+            <button type="button" onClick={() => { if (confirmAdminNavigation()) setEditingPhoto(null); }} className="text-xs px-4 py-2 rounded-full transition-opacity hover:opacity-80" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
               ยกเลิก
             </button>
           </div>
@@ -1405,7 +1181,7 @@ export function LegacyMusicManager() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/admin/music");
+    const res = await adminFetch("/api/admin/music");
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (res.ok) setTracks(data.tracks ?? []);
@@ -1421,7 +1197,7 @@ export function LegacyMusicManager() {
     e.preventDefault();
     setBusy(true);
     setStatus(null);
-    const res = await fetch("/api/admin/music", {
+    const res = await adminFetch("/api/admin/music", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: ytUrl, title: ytTitle, artist: ytArtist }),
@@ -1450,7 +1226,7 @@ export function LegacyMusicManager() {
     form.append("file", musicFile);
     form.append("title", fileTitle);
     form.append("artist", fileArtist);
-    const res = await fetch("/api/admin/music", { method: "POST", body: form });
+    const res = await adminFetch("/api/admin/music", { method: "POST", body: form });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (res.ok) {
@@ -1464,7 +1240,7 @@ export function LegacyMusicManager() {
 
   async function deleteTrack(index: number, title: string) {
     if (!confirm(`ลบเพลง "${title}" จริงๆ หรือ?`)) return;
-    const res = await fetch("/api/admin/music", {
+    const res = await adminFetch("/api/admin/music", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ index }),
@@ -1764,7 +1540,7 @@ function CvForm() {
   const [busy, setBusy] = useState<"preview" | "publish" | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
-  useUnsavedWarning(Boolean(file || preview));
+  useUnsavedWarning(Boolean(file || preview), Boolean(busy));
 
   async function analyze() {
     if (!file) return;
@@ -1773,7 +1549,7 @@ function CvForm() {
     const form = new FormData();
     form.append("file", file);
     form.append("mode", "preview");
-    const res = await fetch("/api/admin/cv", { method: "POST", body: form });
+    const res = await adminFetch("/api/admin/cv", { method: "POST", body: form }, 180_000);
     const data = await res.json().catch(() => ({}));
     setBusy(null);
     if (res.ok) {
@@ -1801,7 +1577,7 @@ function CvForm() {
       "about",
       JSON.stringify(mergeSelectedCvSections(preview.before, preview.about, selected))
     );
-    const res = await fetch("/api/admin/cv", { method: "POST", body: form });
+    const res = await adminFetch("/api/admin/cv", { method: "POST", body: form }, 180_000);
     const data = await res.json().catch(() => ({}));
     setBusy(null);
     if (res.ok) {
@@ -1941,7 +1717,7 @@ function CvVersionHistory({ onRestored }: { onRestored: (message: string) => voi
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/cv/history")
+    adminFetch("/api/admin/cv/history")
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error ?? "โหลดประวัติไม่สำเร็จ");
@@ -1955,7 +1731,7 @@ function CvVersionHistory({ onRestored }: { onRestored: (message: string) => voi
     if (!confirm(`ย้อน CV และหน้า About กลับไปเวอร์ชัน "${item.message}" หรือไม่?`)) return;
     setBusySha(item.sha);
     setError("");
-    const response = await fetch("/api/admin/cv/history", {
+    const response = await adminFetch("/api/admin/cv/history", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sha: item.sha }),
@@ -2249,8 +2025,8 @@ function AboutEditor() {
   const [section, setSection] = useState<AboutSection>("profile");
 
   useEffect(() => {
-    fetch("/api/admin/about")
-      .then((r) => r.json())
+    adminFetch("/api/admin/about")
+      .then(async (r) => { const value = await r.json(); if (!r.ok) throw new Error(value.error); return value; })
       .then((d) => { setData(d); setLoading(false); })
       .catch(() => { setError("โหลดข้อมูลไม่สำเร็จ"); setLoading(false); });
   }, []);
@@ -2280,7 +2056,7 @@ function AboutEditor() {
         {sections.map(([s, label, detail]) => (
           <button
             key={s}
-            onClick={() => setSection(s)}
+            onClick={() => { if (s !== section && confirmAdminNavigation()) setSection(s); }}
             className="text-left rounded-xl px-4 py-3 transition-opacity hover:opacity-80"
             style={{
               fontFamily: "var(--font-inter, Inter, sans-serif)",
@@ -2297,7 +2073,7 @@ function AboutEditor() {
       {section === "profile" && <AboutProfileForm data={data} onSaved={setData} />}
       {section === "experience" && (
         <AboutArrayForm<AboutData["experience"][0]>
-          section="experience" data={data} onSaved={setData}
+          key="experience" section="experience" data={data} onSaved={setData}
           renderItem={(item) => `${item.year} — ${item.role} @ ${item.company}`}
           emptyItem={{ year: "", role: "", company: "", items: [] }}
           renderEditor={(item, onChange) => <ExperienceEditor item={item} onChange={onChange} />}
@@ -2305,7 +2081,7 @@ function AboutEditor() {
       )}
       {section === "research" && (
         <AboutArrayForm<AboutData["research"][0]>
-          section="research" data={data} onSaved={setData}
+          key="research" section="research" data={data} onSaved={setData}
           renderItem={(item) => `${item.year} — ${item.title}`}
           emptyItem={{ year: "", title: "", type: "", items: [] }}
           renderEditor={(item, onChange) => <ResearchEditor item={item} onChange={onChange} />}
@@ -2313,7 +2089,7 @@ function AboutEditor() {
       )}
       {section === "education" && (
         <AboutArrayForm<AboutData["education"][0]>
-          section="education" data={data} onSaved={setData}
+          key="education" section="education" data={data} onSaved={setData}
           renderItem={(item) => `${item.year} — ${item.degree}`}
           emptyItem={{ year: "", degree: "", school: "" }}
           renderEditor={(item, onChange) => <EducationEditor item={item} onChange={onChange} />}
@@ -2321,7 +2097,7 @@ function AboutEditor() {
       )}
       {section === "skills" && (
         <AboutArrayForm<AboutData["skills"][0]>
-          section="skills" data={data} onSaved={setData}
+          key="skills" section="skills" data={data} onSaved={setData}
           renderItem={(item) => item.category}
           emptyItem={{ category: "", items: [] }}
           renderEditor={(item, onChange) => <SkillEditor item={item} onChange={onChange} />}
@@ -2330,7 +2106,7 @@ function AboutEditor() {
       {section === "certifications" && <CertificationsEditor data={data} onSaved={setData} />}
       {section === "languages" && (
         <AboutArrayForm<AboutData["languages"][0]>
-          section="languages" data={data} onSaved={setData}
+          key="languages" section="languages" data={data} onSaved={setData}
           renderItem={(item) => `${item.lang} — ${item.level}`}
           emptyItem={{ lang: "", level: "" }}
           renderEditor={(item, onChange) => <LanguageEditor item={item} onChange={onChange} />}
@@ -2341,7 +2117,7 @@ function AboutEditor() {
 }
 
 async function saveAbout(data: AboutData): Promise<{ ok: boolean; error?: string }> {
-  const res = await fetch("/api/admin/about", {
+  const res = await adminFetch("/api/admin/about", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -2355,7 +2131,8 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
   const [profile, setProfile] = useState({ ...data.profile });
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  useUnsavedWarning(JSON.stringify(profile) !== JSON.stringify(data.profile));
+  const localDraft = useLocalDraft("kyo-admin-about-profile", profile, data.profile, setProfile);
+  useUnsavedWarning(false, busy);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -2364,6 +2141,7 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
     const result = await saveAbout(newData);
     setBusy(false);
     if (result.ok) {
+      localDraft.clear();
       setStatus({ ok: true, text: "บันทึกแล้ว! 🎉" });
       onSaved(newData);
     } else {
@@ -2385,7 +2163,9 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
   ];
 
   return (
-    <form onSubmit={submit} className="rounded-2xl p-6 space-y-3" style={card}>
+    <form onSubmit={submit} aria-busy={busy} className="rounded-2xl p-6 space-y-3" style={card}>
+      <fieldset disabled={busy || !localDraft.ready} className="space-y-4 min-w-0">
+      <DraftNotice draft={localDraft} />
       {fields.map(([key, label, type]) => (
         <label key={key} className="block text-sm" style={labelStyle}>
           {label}
@@ -2436,139 +2216,63 @@ function AboutProfileForm({ data, onSaved }: { data: AboutData; onSaved: (d: Abo
         />
       </label>
       <StatusMessage status={status} />
-      <button type="submit" disabled={busy} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+      <button type="submit" disabled={busy || localDraft.recovery} className="admin-actions w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
         {busy ? "กำลังบันทึก..." : "บันทึก Profile"}
       </button>
-    </form>
+    </fieldset>
+      </form>
   );
 }
 
-function AboutArrayForm<T>({
-  section, data, onSaved, renderItem, emptyItem, renderEditor,
-}: {
+function AboutArrayForm<T>({ section, data, onSaved, renderItem, emptyItem, renderEditor }: {
   section: keyof Omit<AboutData, "profile" | "certifications">;
-  data: AboutData;
-  onSaved: (d: AboutData) => void;
-  renderItem: (item: T) => string;
-  emptyItem: T;
+  data: AboutData; onSaved: (data: AboutData) => void;
+  renderItem: (item: T) => string; emptyItem: T;
   renderEditor: (item: T, onChange: (item: T) => void) => React.ReactNode;
 }) {
-  const items = (data[section] as T[]);
+  const [items, setItems] = useState<T[]>(() => structuredClone(data[section]) as T[]);
   const [editIdx, setEditIdx] = useState<number | null>(null);
-  const [editItem, setEditItem] = useState<T | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [newItem, setNewItem] = useState<T>({ ...emptyItem });
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const localDraft = useLocalDraft(`kyo-admin-about-${section}`, items, data[section] as T[], setItems, true, [emptyItem]);
+  useUnsavedWarning(false, busy);
 
-  async function save(updated: T[]) {
+  async function save() {
     setBusy(true);
-    const newData = { ...data, [section]: updated };
-    const result = await saveAbout(newData);
+    const next = { ...data, [section]: items };
+    const result = await saveAbout(next);
     setBusy(false);
     if (result.ok) {
-      setStatus({ ok: true, text: "บันทึกแล้ว! 🎉" });
-      onSaved(newData);
-      setEditIdx(null);
-      setEditItem(null);
-      setAdding(false);
-      setNewItem({ ...emptyItem });
-    } else {
-      setStatus({ ok: false, text: result.error ?? "เกิดข้อผิดพลาด" });
-    }
-  }
-
-  async function deleteItem(idx: number) {
-    if (!confirm("ลบรายการนี้จริงๆ หรือ?")) return;
-    const updated = items.filter((_, i) => i !== idx);
-    await save(updated);
+      localDraft.clear(); onSaved(next);
+      setStatus({ ok: true, text: "บันทึกทั้งหมวดแล้ว" });
+    } else setStatus({ ok: false, text: result.error ?? "บันทึกไม่สำเร็จ" });
   }
 
   return (
     <div className="space-y-3">
-      <StatusMessage status={status} />
-      {items.map((item, idx) => (
-        <div key={idx} className="rounded-2xl p-4 space-y-3" style={card}>
-          {editIdx === idx && editItem !== null ? (
-            <>
-              {renderEditor(editItem, setEditItem)}
-              <div className="flex gap-2">
-                <button
-                  disabled={busy}
-                  onClick={() => {
-                    const updated = items.map((it, i) => (i === idx ? editItem : it));
-                    save(updated);
-                  }}
-                  className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80 disabled:opacity-40"
-                  style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-                >
-                  {busy ? "..." : "บันทึก"}
-                </button>
-                <button
-                  onClick={() => { setEditIdx(null); setEditItem(null); }}
-                  className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            </>
-          ) : (
+      <DraftNotice draft={localDraft} />
+      <fieldset disabled={busy || !localDraft.ready} className="space-y-3 min-w-0">
+        {items.map((item, idx) => (
+          <div key={idx} className="rounded-2xl p-4 space-y-3" style={card}>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm truncate" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink)" }}>
-                {renderItem(item)}
-              </span>
+              <span className="text-sm min-w-0" style={labelStyle}>{renderItem(item) || "รายการใหม่"}</span>
               <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => { setEditIdx(idx); setEditItem({ ...item }); }}
-                  className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-                >
-                  แก้ไข
-                </button>
-                <button
-                  onClick={() => deleteItem(idx)}
-                  className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: "#f5e0d8", color: "#b3553a", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-                >
-                  ลบ
-                </button>
+                <button type="button" aria-expanded={editIdx === idx} onClick={() => setEditIdx(editIdx === idx ? null : idx)} className="text-xs px-3 rounded-full" style={{ backgroundColor: "var(--accent-light)" }}>{editIdx === idx ? "ย่อ" : "แก้ไข"}</button>
+                <button type="button" onClick={() => {
+                  if (!confirm("นำรายการนี้ออก? กดบันทึกทั้งหมวดเพื่อยืนยันบนเว็บไซต์")) return;
+                  setItems(items.filter((_, index) => index !== idx)); setEditIdx(null);
+                }} className="text-xs px-3 rounded-full" style={{ backgroundColor: "#f5e0d8", color: "#b3553a" }}>ลบ</button>
               </div>
             </div>
-          )}
-        </div>
-      ))}
-
-      {adding ? (
-        <div className="rounded-2xl p-4 space-y-3" style={{ ...card, border: "1px solid var(--accent)" }}>
-          {renderEditor(newItem, setNewItem)}
-          <div className="flex gap-2">
-            <button
-              disabled={busy}
-              onClick={() => save([newItem, ...items])}
-              className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80 disabled:opacity-40"
-              style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-            >
-              {busy ? "..." : "เพิ่ม"}
-            </button>
-            <button
-              onClick={() => { setAdding(false); setNewItem({ ...emptyItem }); }}
-              className="text-xs px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
-              style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-            >
-              ยกเลิก
-            </button>
+            {editIdx === idx && renderEditor(item, (value) => setItems((current) => current.map((entry, index) => index === idx ? value : entry)))}
           </div>
+        ))}
+        <div className="admin-actions grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => { setItems([...items, structuredClone(emptyItem)]); setEditIdx(items.length); }} className="rounded-full text-sm" style={{ backgroundColor: "var(--accent-light)" }}>＋ เพิ่มรายการ</button>
+          <button type="button" onClick={save} className="rounded-full text-sm disabled:opacity-40" disabled={!localDraft.dirty || localDraft.recovery} style={{ backgroundColor: "var(--accent)", color: "#fff" }}>{busy ? "กำลังบันทึก..." : "บันทึกทั้งหมวด"}</button>
         </div>
-      ) : (
-        <button
-          onClick={() => setAdding(true)}
-          className="w-full py-2 rounded-full text-sm transition-opacity hover:opacity-80"
-          style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-        >
-          + เพิ่มรายการใหม่
-        </button>
-      )}
+      </fieldset>
+      <StatusMessage status={status} />
     </div>
   );
 }
@@ -2649,7 +2353,7 @@ function FileField({ label, value, accept, onChange }: {
     setError("");
     const form = new FormData();
     form.append("file", f);
-    const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+    const res = await adminFetch("/api/admin/upload", { method: "POST", body: form });
     const data = await res.json().catch(() => ({}));
     setUploading(false);
     if (res.ok) onChange(data.filename);
@@ -2754,6 +2458,9 @@ function CertificationsEditor({ data, onSaved }: { data: AboutData; onSaved: (d:
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const localDraft = useLocalDraft("kyo-admin-about-certifications", certs, data.certifications, setCerts, true, [""]);
+  useUnsavedWarning(false, busy);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -2761,6 +2468,8 @@ function CertificationsEditor({ data, onSaved }: { data: AboutData; onSaved: (d:
     const result = await saveAbout(newData);
     setBusy(false);
     if (result.ok) {
+      localDraft.clear();
+      setCerts(newData.certifications);
       setStatus({ ok: true, text: "บันทึกแล้ว! 🎉" });
       onSaved(newData);
     } else {
@@ -2769,28 +2478,36 @@ function CertificationsEditor({ data, onSaved }: { data: AboutData; onSaved: (d:
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl p-6 space-y-4" style={card}>
+    <form onSubmit={submit} aria-busy={busy} className="rounded-2xl p-6 space-y-4" style={card}>
+      <fieldset disabled={busy || !localDraft.ready} className="space-y-4 min-w-0">
+      <DraftNotice draft={localDraft} />
       <ItemsEditor items={certs} onChange={setCerts} placeholder="ชื่อใบรับรอง" />
       <StatusMessage status={status} />
-      <button type="submit" disabled={busy} className="w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
+      <button type="submit" disabled={busy || localDraft.recovery} className="admin-actions w-full py-2.5 rounded-full text-sm transition-opacity hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}>
         {busy ? "กำลังบันทึก..." : "บันทึก Certifications"}
       </button>
-    </form>
+    </fieldset>
+      </form>
   );
 }
 
 function CurrentlyEditor() {
   const [data, setData] = useState<CurrentlyData>({ updatedAt: "", items: [] });
+  const [baseline, setBaseline] = useState<CurrentlyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const localDraft = useLocalDraft("kyo-admin-currently", data, baseline ?? data, setData, baseline !== null, { updatedAt: "", items: [{ id: "", label: "", emoji: "", title: "", detail: "" }] });
+  useUnsavedWarning(false, busy);
+
   useEffect(() => {
-    fetch("/api/admin/currently")
+    adminFetch("/api/admin/currently")
       .then(async (response) => {
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error ?? "โหลด Currently ไม่สำเร็จ");
         setData(result as CurrentlyData);
+        setBaseline(result as CurrentlyData);
       })
       .catch((error) => setStatus({ ok: false, text: error instanceof Error ? error.message : "โหลด Currently ไม่สำเร็จ" }))
       .finally(() => setLoading(false));
@@ -2813,13 +2530,17 @@ function CurrentlyEditor() {
   async function save() {
     setBusy(true);
     setStatus(null);
-    const response = await fetch("/api/admin/currently", {
+    const response = await adminFetch("/api/admin/currently", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     const result = await response.json().catch(() => ({}));
     setBusy(false);
+    if (response.ok) {
+      const saved = { ...data, updatedAt: result.updatedAt ?? data.updatedAt };
+      setData(saved); setBaseline(saved); localDraft.clear();
+    }
     setStatus(response.ok
       ? { ok: true, text: "บันทึก Currently แล้ว เว็บจะอัปเดตหลัง Deployment เสร็จ 🎉" }
       : { ok: false, text: result.error ?? "บันทึก Currently ไม่สำเร็จ" });
@@ -2827,8 +2548,12 @@ function CurrentlyEditor() {
 
   if (loading) return <p style={{ color: "var(--ink-light)" }}>กำลังโหลด Currently...</p>;
 
+  if (!baseline) return <StatusMessage status={status} />;
+
   return (
     <div className="space-y-4">
+      <DraftNotice draft={localDraft} />
+      <fieldset disabled={busy || !localDraft.ready || localDraft.recovery} className="space-y-4 min-w-0">
       {data.items.map((item, index) => (
         <div key={item.id} className="rounded-2xl p-5 space-y-3" style={card}>
           <div className="flex items-center justify-between">
@@ -2848,10 +2573,11 @@ function CurrentlyEditor() {
           <label className="block text-sm" style={labelStyle}>ลิงก์ (ไม่บังคับ)<input value={item.href ?? ""} onChange={(event) => updateItem(index, { href: event.target.value })} placeholder="https://..." className="mt-1 w-full rounded-xl px-3 py-2 outline-none" style={inputStyle} /></label>
         </div>
       ))}
-      <div className="grid sm:grid-cols-2 gap-2">
+      <div className="admin-actions grid sm:grid-cols-2 gap-2">
         <button type="button" onClick={addItem} disabled={data.items.length >= 12} className="py-2.5 rounded-full text-sm disabled:opacity-40" style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)" }}>+ เพิ่มการ์ด</button>
         <button type="button" onClick={save} disabled={busy} className="py-2.5 rounded-full text-sm disabled:opacity-40" style={{ backgroundColor: "var(--accent)", color: "#fff" }}>{busy ? "กำลังบันทึก..." : "บันทึก Currently"}</button>
       </div>
+      </fieldset>
       <StatusMessage status={status} />
     </div>
   );

@@ -34,10 +34,11 @@ export async function PUT(request: Request) {
   if (!isConfigured()) return Response.json({ error: "ยังไม่ได้ตั้งค่า GITHUB_TOKEN ใน Vercel" }, { status: 500 });
   const body = await request.json().catch(() => null);
   if (!validData(body)) return Response.json({ error: "ข้อมูล Currently ไม่ถูกต้อง" }, { status: 400 });
-  const content = JSON.stringify({ ...body, updatedAt: new Date().toISOString().slice(0, 10) }, null, 2) + "\n";
+  const updatedAt = new Date().toISOString().slice(0, 10);
+  const content = JSON.stringify({ ...body, updatedAt }, null, 2) + "\n";
   try {
     const commitSha = await commitFiles([{ path: CURRENTLY_PATH, content, encoding: "utf-8" }], "Update currently page");
-    return Response.json({ ok: true, commitSha });
+    return Response.json({ ok: true, commitSha, updatedAt });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "บันทึก Currently ไม่สำเร็จ" }, { status: 502 });
   }

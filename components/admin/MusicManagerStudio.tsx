@@ -1,5 +1,7 @@
 "use client";
 
+import { adminFetch } from "@/lib/admin/client";
+import { confirmAdminNavigation, useUnsavedChanges } from "./useUnsavedChanges";
 import { useCallback, useEffect, useState } from "react";
 
 interface MusicTrack {
@@ -29,7 +31,7 @@ const textStyle: React.CSSProperties = {
 function Status({ value }: { value: { ok: boolean; text: string } | null }) {
   if (!value) return null;
   return (
-    <p
+    <p role={value.ok ? "status" : "alert"} aria-live="polite"
       className="text-sm rounded-xl px-4 py-3"
       style={{
         fontFamily: "var(--font-inter, Inter, sans-serif)",
@@ -63,18 +65,11 @@ export default function MusicManagerStudio() {
   const [fileArtist, setFileArtist] = useState("");
   const formDirty = Boolean(ytUrl.trim() || ytTitle.trim() || ytArtist.trim() || musicFile || fileTitle.trim() || fileArtist.trim() || editingIndex !== null);
 
-  useEffect(() => {
-    function warn(event: BeforeUnloadEvent) {
-      if (!formDirty) return;
-      event.preventDefault();
-    }
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [formDirty]);
+  useUnsavedChanges(formDirty, busy || metadataBusy);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/admin/music");
+    const res = await adminFetch("/api/admin/music");
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (res.ok) setTracks(data.tracks ?? []);
@@ -90,7 +85,7 @@ export default function MusicManagerStudio() {
     if (!ytUrl.trim()) return;
     setMetadataBusy(true);
     setStatus(null);
-    const res = await fetch(`/api/admin/music?url=${encodeURIComponent(ytUrl.trim())}`);
+    const res = await adminFetch(`/api/admin/music?url=${encodeURIComponent(ytUrl.trim())}`);
     const data = await res.json().catch(() => ({}));
     setMetadataBusy(false);
     if (res.ok) {
@@ -106,7 +101,7 @@ export default function MusicManagerStudio() {
     event.preventDefault();
     setBusy(true);
     setStatus(null);
-    const res = await fetch("/api/admin/music", {
+    const res = await adminFetch("/api/admin/music", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: ytUrl, title: ytTitle, artist: ytArtist }),
@@ -138,7 +133,7 @@ export default function MusicManagerStudio() {
     form.append("file", musicFile);
     form.append("title", fileTitle);
     form.append("artist", fileArtist);
-    const res = await fetch("/api/admin/music", { method: "POST", body: form });
+    const res = await adminFetch("/api/admin/music", { method: "POST", body: form });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (res.ok) {
@@ -155,7 +150,7 @@ export default function MusicManagerStudio() {
   async function savePlaylist(nextTracks: MusicTrack[], message: string) {
     setBusy(true);
     setStatus(null);
-    const res = await fetch("/api/admin/music", {
+    const res = await adminFetch("/api/admin/music", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tracks: nextTracks }),
@@ -172,6 +167,7 @@ export default function MusicManagerStudio() {
   }
 
   function startEdit(index: number) {
+    if (editingIndex !== null && !confirmAdminNavigation()) return;
     setEditingIndex(index);
     setEditTitle(tracks[index].title);
     setEditArtist(tracks[index].artist ?? "");
@@ -195,7 +191,7 @@ export default function MusicManagerStudio() {
   async function deleteTrack(index: number, title: string) {
     if (!confirm(`ลบเพลง "${title}" จริงๆ หรือ?`)) return;
     setBusy(true);
-    const res = await fetch("/api/admin/music", {
+    const res = await adminFetch("/api/admin/music", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ index }),

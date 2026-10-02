@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { Track } from "@/lib/music";
 
 declare global {
@@ -12,6 +13,12 @@ declare global {
 }
 
 export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
+  const pathname = usePathname();
+  if (pathname === "/admin" || pathname?.startsWith("/admin/")) return null;
+  return <PublicMusicPlayer tracks={tracks} />;
+}
+
+function PublicMusicPlayer({ tracks }: { tracks: Track[] }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ytRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -36,7 +43,10 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
 
   useEffect(() => {
     if (!hasYouTube) return;
+    let disposed = false;
+    const previousReady = window.onYouTubeIframeAPIReady;
     function init() {
+      if (disposed) return;
       const firstYt = tracksRef.current.find((t) => t.type === "youtube");
       if (!firstYt) return;
       ytRef.current = new window.YT.Player("yt-player", {
@@ -44,10 +54,12 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
         playerVars: { autoplay: 0, controls: 0 },
         events: {
           onReady: () => {
+            if (disposed) return;
             setYtReady(true);
             ytRef.current.setVolume(volumeRef.current);
           },
           onStateChange: (e: { data: number }) => {
+            if (disposed) return;
             const cur = tracksRef.current[idxRef.current];
             if (cur?.type !== "youtube") return;
             if (e.data === 0) {
@@ -60,14 +72,22 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
         },
       });
     }
-    if (window.YT?.Player) {
-      init();
-      return;
+    function ready() { previousReady?.(); init(); }
+    if (window.YT?.Player) init();
+    else {
+      window.onYouTubeIframeAPIReady = ready;
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const tag = document.createElement("script");
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+      }
     }
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-    window.onYouTubeIframeAPIReady = init;
+    return () => {
+      disposed = true;
+      ytRef.current?.destroy?.();
+      ytRef.current = null;
+      if (window.onYouTubeIframeAPIReady === ready) window.onYouTubeIframeAPIReady = previousReady;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
