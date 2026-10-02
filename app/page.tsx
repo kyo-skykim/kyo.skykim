@@ -22,7 +22,7 @@ export default function Home() {
           — personal diary —
         </p>
         <h1
-          className="text-5xl mb-3"
+          className="motion-heading text-5xl mb-3"
           style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}
         >
           My Diary

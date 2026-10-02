@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Photo } from "@/lib/gallery";
+import RevealGroup from "@/components/ui/RevealGroup";
 
 function formatDate(date?: string) {
   if (!date) return null;
@@ -31,12 +32,13 @@ export default function GalleryGrid({ photos }: { photos: Photo[] }) {
 
   return (
     <>
-      <div className="columns-2 gap-4 sm:columns-3">
+      <RevealGroup className="columns-2 gap-4 sm:columns-3">
         {photos.map((photo, i) => (
           <button
             key={photo.file ?? i}
             type="button"
-            className="break-inside-avoid mb-4 w-full overflow-hidden rounded-2xl text-left transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="motion-card break-inside-avoid mb-4 w-full overflow-hidden rounded-2xl text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            data-reveal=""
             style={{ border: "1px solid var(--border)", boxShadow: "0 1px 4px rgba(44,36,22,0.05)" }}
             onClick={() => setZoomed(photo)}
             aria-label={photo.caption ? `ดูรูป: ${photo.caption}` : "ดูรูปขนาดใหญ่"}
@@ -63,19 +65,19 @@ export default function GalleryGrid({ photos }: { photos: Photo[] }) {
             )}
           </button>
         ))}
-      </div>
+      </RevealGroup>
 
       {zoomed && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-          style={{ backgroundColor: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)" }}
+          className="motion-overlay fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+          style={{ backgroundColor: "rgba(0,0,0,0.88)" }}
           onClick={() => setZoomed(null)}
           role="dialog"
           aria-modal="true"
           aria-label={zoomed.caption ? `รูป: ${zoomed.caption}` : "ดูรูปขนาดใหญ่"}
         >
           <button
-            className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-white transition-opacity hover:opacity-60"
+            className="motion-button absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-white"
             style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
             onClick={() => setZoomed(null)}
             aria-label="ปิดรูปภาพ"
@@ -83,7 +85,7 @@ export default function GalleryGrid({ photos }: { photos: Photo[] }) {
             ✕
           </button>
           <div
-            className="w-full max-w-3xl overflow-hidden rounded-2xl"
+            className="motion-dialog w-full max-w-3xl overflow-hidden rounded-2xl"
             style={{ backgroundColor: "var(--warm-white)" }}
             onClick={(event) => event.stopPropagation()}
           >

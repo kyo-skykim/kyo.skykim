@@ -1,4 +1,5 @@
 import Nav from "@/components/layout/Nav";
+import RevealGroup from "@/components/ui/RevealGroup";
 import { getAllProjects } from "@/lib/projects";
 
 export default function ArchitecturePage() {
@@ -12,7 +13,7 @@ export default function ArchitecturePage() {
       <main className="max-w-2xl mx-auto px-6 py-12">
         <header className="mb-10">
           <h1
-            className="text-3xl mb-2"
+            className="motion-heading text-3xl mb-2"
             style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}
           >
             Architecture
@@ -26,14 +27,15 @@ export default function ArchitecturePage() {
         </header>
 
         {/* Project cards */}
-        <div className="space-y-4 mb-10">
+        <RevealGroup className="space-y-4 mb-10">
           {projects.map((project) => (
             <a
               key={project.slug}
               href={project.pdf ? `/${encodeURIComponent(project.pdf)}` : undefined}
               target="_blank"
               rel="noopener noreferrer"
-              className="block rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5"
+              className={`${project.pdf ? "motion-card " : ""}block rounded-2xl p-6`}
+              data-reveal=""
               style={{
                 backgroundColor: "var(--warm-white)",
                 border: "1px solid var(--border)",
@@ -96,7 +98,7 @@ export default function ArchitecturePage() {
               ยังไม่มีโปรเจกต์...
             </p>
           )}
-        </div>
+        </RevealGroup>
 
         {/* PDF Preview */}
         {preview && (

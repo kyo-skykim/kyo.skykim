@@ -134,7 +134,7 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-50 transition-all duration-300"
+      className="fixed bottom-5 right-5 z-50"
       style={{ filter: "drop-shadow(0 4px 12px rgba(44,36,22,0.15))" }}
     >
       <div id="yt-player" style={{ display: "none" }} />
@@ -150,7 +150,7 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
         style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}
       >
         {!minimized && (
-          <div className="px-4 pt-3 pb-1">
+          <div className="motion-overlay px-4 pt-3 pb-1">
             <p className="text-xs leading-tight" style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}>
               Now playing {tracks.length > 1 ? `· ${idx + 1}/${tracks.length}` : ""}
             </p>
@@ -184,7 +184,7 @@ export default function MusicPlayer({ tracks }: { tracks: Track[] }) {
 
             {playlistOpen && tracks.length > 1 && (
               <div
-                className="mb-3 max-h-48 overflow-y-auto rounded-xl p-1"
+                className="motion-overlay mb-3 max-h-48 overflow-y-auto rounded-xl p-1"
                 style={{ backgroundColor: "var(--cream)", border: "1px solid var(--border)" }}
                 aria-label="Playlist"
               >

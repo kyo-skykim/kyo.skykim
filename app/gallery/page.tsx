@@ -12,7 +12,7 @@ export default function GalleryPage() {
       <main className="max-w-2xl mx-auto px-6 py-12">
         <header className="mb-10">
           <h1
-            className="text-3xl mb-2"
+            className="motion-heading text-3xl mb-2"
             style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}
           >
             Gallery

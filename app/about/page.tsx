@@ -46,7 +46,7 @@ export default function AboutPage() {
           </div>
           <div>
             <h1
-              className="text-3xl mb-1"
+              className="motion-heading text-3xl mb-1"
               style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}
             >
               {profile.name}
@@ -89,7 +89,7 @@ export default function AboutPage() {
             href={`/${profile.cv}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm px-5 py-2 rounded-full transition-opacity hover:opacity-70"
+            className="motion-button text-sm px-5 py-2 rounded-full"
             style={{ backgroundColor: "var(--accent)", color: "#fff", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
           >
             Download
@@ -138,7 +138,7 @@ export default function AboutPage() {
                           href={`/${encodeURIComponent(r.pdf)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs px-3 py-1 rounded-full transition-opacity hover:opacity-70"
+                          className="motion-button text-xs px-3 py-1 rounded-full"
                           style={{ backgroundColor: "var(--accent-light)", color: "var(--accent)", fontFamily: "var(--font-inter, Inter, sans-serif)" }}
                         >
                           PDF ↗

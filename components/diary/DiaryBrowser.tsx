@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { PostMeta } from "@/lib/diary";
+import RevealGroup from "@/components/ui/RevealGroup";
 
 type BrowserPost = PostMeta & { dateLabel: string };
 
@@ -38,11 +39,11 @@ export default function DiaryBrowser({ posts }: { posts: BrowserPost[] }) {
         </p>
       </div>
 
-      <div className="space-y-6">
+      <RevealGroup className="space-y-6" refreshKey={query}>
         {filtered.map((post) => (
-          <Link key={post.slug} href={`/posts/${post.slug}`}>
+          <Link key={post.slug} href={`/posts/${post.slug}`} className="motion-card block rounded-2xl" data-reveal="">
             <article
-              className="rounded-2xl p-7 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+              className="rounded-2xl p-7 cursor-pointer"
               style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)", boxShadow: "0 1px 4px rgba(44,36,22,0.05)" }}
             >
               <div className="flex items-start gap-5">
@@ -69,7 +70,7 @@ export default function DiaryBrowser({ posts }: { posts: BrowserPost[] }) {
             </article>
           </Link>
         ))}
-      </div>
+      </RevealGroup>
 
       {filtered.length === 0 && (
         <p className="text-center py-20" style={{ color: "var(--ink-light)", fontStyle: "italic" }}>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPost, getAllPosts, getRelatedPosts, formatDate } from "@/lib/diary";
 import ReadingMode from "@/components/diary/ReadingMode";
+import RevealGroup from "@/components/ui/RevealGroup";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -52,7 +53,7 @@ export default async function PostPage({ params }: Props) {
         <div className="max-w-2xl mx-auto">
           <Link
             href="/"
-            className="text-sm inline-flex items-center gap-1.5 transition-colors hover:opacity-70"
+            className="motion-nav text-sm inline-flex items-center gap-1.5"
             style={{
               fontFamily: "var(--font-inter, Inter, sans-serif)",
               color: "var(--accent)",
@@ -89,7 +90,7 @@ export default async function PostPage({ params }: Props) {
           </div>
 
           <h1
-            className="text-3xl leading-snug mb-4"
+            className="motion-heading text-3xl leading-snug mb-4"
             style={{
               fontFamily: "var(--font-lora, Georgia, serif)",
               color: "var(--ink)",
@@ -164,11 +165,11 @@ export default async function PostPage({ params }: Props) {
             >
               บันทึกอื่น ๆ
             </h2>
-            <div className="space-y-3">
+            <RevealGroup className="space-y-3">
               {related.map((r) => (
-                <Link key={r.slug} href={`/posts/${r.slug}`}>
+                <Link key={r.slug} href={`/posts/${r.slug}`} className="motion-card block rounded-2xl" data-reveal="">
                   <article
-                    className="rounded-2xl p-4 flex items-center gap-4 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+                    className="rounded-2xl p-4 flex items-center gap-4 cursor-pointer"
                     style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)" }}
                   >
                     <div
@@ -194,7 +195,7 @@ export default async function PostPage({ params }: Props) {
                   </article>
                 </Link>
               ))}
-            </div>
+            </RevealGroup>
           </section>
         )}
 
@@ -202,7 +203,7 @@ export default async function PostPage({ params }: Props) {
         <div className="mt-10 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm px-6 py-2.5 rounded-full transition-all hover:opacity-80"
+            className="motion-button gap-2 text-sm px-6 py-2.5 rounded-full"
             style={{
               fontFamily: "var(--font-inter, Inter, sans-serif)",
               backgroundColor: "var(--accent-light)",

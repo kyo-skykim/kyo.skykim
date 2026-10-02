@@ -1,4 +1,5 @@
 import Nav from "@/components/layout/Nav";
+import RevealGroup from "@/components/ui/RevealGroup";
 import { formatCurrentlyDate, getCurrently } from "@/lib/currently";
 
 export const dynamic = "force-dynamic";
@@ -12,16 +13,16 @@ export default function CurrentlyPage() {
       <main className="max-w-2xl mx-auto px-6 py-12">
         <header className="mb-10">
           <p className="text-sm uppercase tracking-widest mb-3" style={{ color: "var(--accent)", letterSpacing: "0.15em" }}>— right now —</p>
-          <h1 className="text-4xl" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>Currently</h1>
+          <h1 className="motion-heading text-4xl" style={{ fontFamily: "var(--font-lora, Georgia, serif)", color: "var(--ink)", fontWeight: 500 }}>Currently</h1>
           <p className="mt-3 leading-relaxed" style={{ color: "var(--ink-light)", fontFamily: "var(--font-lora, Georgia, serif)" }}>
             สิ่งที่กำลังทำ เรียน ฟัง และสนใจอยู่ในช่วงนี้
           </p>
           {currently.updatedAt && <p className="text-xs mt-3" style={{ color: "var(--accent)" }}>อัปเดตล่าสุด {formatCurrentlyDate(currently.updatedAt)}</p>}
         </header>
-        <div className="space-y-4">
+        <RevealGroup className="space-y-4">
           {currently.items.map((item) => {
             const content = (
-              <article className="rounded-2xl p-6 flex items-start gap-4 transition-all hover:-translate-y-0.5" style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)", boxShadow: "0 1px 4px rgba(44,36,22,0.05)" }}>
+              <article className="rounded-2xl p-6 flex items-start gap-4" style={{ backgroundColor: "var(--warm-white)", border: "1px solid var(--border)", boxShadow: "0 1px 4px rgba(44,36,22,0.05)" }}>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0" style={{ backgroundColor: "var(--accent-light)" }}>{item.emoji}</div>
                 <div>
                   <p className="text-xs uppercase tracking-widest" style={{ color: "var(--accent)", letterSpacing: "0.1em" }}>{item.label}</p>
@@ -30,9 +31,11 @@ export default function CurrentlyPage() {
                 </div>
               </article>
             );
-            return item.href ? <a key={item.id} href={item.href}>{content}</a> : <div key={item.id}>{content}</div>;
+            return item.href
+              ? <a key={item.id} href={item.href} className="motion-card block rounded-2xl" data-reveal="">{content}</a>
+              : <div key={item.id} data-reveal="">{content}</div>;
           })}
-        </div>
+        </RevealGroup>
         {currently.items.length === 0 && <p style={{ color: "var(--ink-light)" }}>ยังไม่มีข้อมูล Currently</p>}
       </main>
     </div>

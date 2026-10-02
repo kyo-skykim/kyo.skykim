@@ -18,21 +18,21 @@ export default function ZoomImage({ src, alt }: { src: string; alt: string }) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(44,36,22,0.85)", backdropFilter: "blur(4px)" }}
+          className="motion-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(44,36,22,0.88)" }}
           onClick={() => setOpen(false)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}
-            className="max-w-full max-h-full rounded-2xl shadow-2xl cursor-zoom-out"
+            className="motion-dialog max-w-full max-h-full rounded-2xl shadow-2xl cursor-zoom-out"
             style={{ objectFit: "contain" }}
             onClick={(e) => e.stopPropagation()}
           />
           <button
             onClick={() => setOpen(false)}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+            className="motion-button absolute top-4 right-4 w-9 h-9 rounded-full"
             style={{ backgroundColor: "var(--warm-white)", color: "var(--ink)" }}
             aria-label="Close"
           >

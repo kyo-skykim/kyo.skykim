@@ -27,7 +27,7 @@ export default function Nav() {
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm transition-opacity hover:opacity-60"
+                className="motion-nav text-sm"
                 style={{ fontFamily: "var(--font-inter, Inter, sans-serif)", color: "var(--ink-light)" }}
               >
                 {l.label}
@@ -37,14 +37,14 @@ export default function Nav() {
               href="https://draftstage-48.aomsinzxc.chatgpt.site/"
               target="_blank"
               rel="noopener noreferrer"
-              className="whitespace-nowrap rounded-full px-3 py-1.5 text-xs transition-opacity hover:opacity-75"
+              className="motion-button gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-xs"
               style={{
                 fontFamily: "var(--font-inter, Inter, sans-serif)",
                 color: "var(--accent)",
                 backgroundColor: "var(--accent-light)",
               }}
             >
-              48 Draftstage ↗
+              48 Draftstage <span className="motion-arrow" aria-hidden="true">↗</span>
             </a>
           </div>
           <DarkModeToggle />
